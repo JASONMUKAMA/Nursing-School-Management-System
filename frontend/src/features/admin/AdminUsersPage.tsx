@@ -1,5 +1,5 @@
-import { FormEvent, useCallback, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { FormEvent, useCallback, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ApiClientError } from '../../api/client';
 import { authApi, usersApi } from '../../api/endpoints';
 import { Alert } from '../../components/ui/Alert';
@@ -16,6 +16,7 @@ import { ServerDataTable } from '../../components/ui/ServerDataTable';
 import { ViewRowButton } from '../../components/ui/ViewRowButton';
 import type { Role, TwoFactorSetupResponse, User } from '../../types';
 import { ROLES } from '../../utils/roles';
+import { getUserPhotoUrl, mergeUserMedia, mergeUserPhotoCache } from '../../utils/userMedia';
 
 const STAFF_ROLES: Role[] = ['Lecturer', 'Registrar', 'ClinicalCoordinator', 'FinanceOfficer', 'Admin'];
 
@@ -56,6 +57,8 @@ function toUserForm(user: User): UserForm {
 }
 
 export function AdminUsersPage() {
+  const { pathname } = useLocation();
+  const isTeachersView = pathname.includes('/teachers');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -76,12 +79,91 @@ export function AdminUsersPage() {
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [nationalIdFront, setNationalIdFront] = useState<File | null>(null);
   const [nationalIdBack, setNationalIdBack] = useState<File | null>(null);
+  const [uploadingField, setUploadingField] = useState<'photo' | 'idFront' | 'idBack' | null>(null);
+  const [uploadedRow, setUploadedRow] = useState<User | null>(null);
+  const [photoById, setPhotoById] = useState<Record<string, string>>({});
+  const photoByIdRef = useRef<Record<string, string>>({});
+
+  const rememberPhotos = (...users: (User | null | undefined)[]) => {
+    const valid = users.filter((u): u is User => Boolean(u));
+    if (valid.length === 0) return;
+    const next = mergeUserPhotoCache(photoByIdRef.current, valid);
+    if (next === photoByIdRef.current) return;
+    photoByIdRef.current = next;
+    setPhotoById(next);
+  };
+
+  const syncUser = (updated: User, preserve?: User | null) => {
+    const base = preserve ?? editing ?? uploadedRow;
+    const merged = base ? mergeUserMedia(base, updated) : updated;
+    rememberPhotos(merged);
+    setEditing(merged);
+    setUploadedRow(merged);
+    setRefreshKey((k) => k + 1);
+    if (viewing?.id === merged.id) setViewing(merged);
+  };
 
   const fetchUsers = useCallback(
-    (page: number, pageSize: number, search: string) =>
-      usersApi.getAll(page, pageSize, search || undefined),
-    [],
+    async (page: number, pageSize: number, search: string) => {
+      const result = await usersApi.getAll(page, pageSize, search || undefined);
+      rememberPhotos(...result.items);
+      return {
+        ...result,
+        items: result.items.map((row) => {
+          let enriched = uploadedRow?.id === row.id ? mergeUserMedia(row, uploadedRow) : row;
+          const photo = getUserPhotoUrl(enriched, photoByIdRef.current);
+          if (photo && !enriched.profileImageUrl) {
+            enriched = { ...enriched, profileImageUrl: photo };
+          }
+          return enriched;
+        }),
+      };
+    },
+    [uploadedRow],
   );
+
+  const instantUpload = async (field: 'photo' | 'idFront' | 'idBack', file: File | null) => {
+    if (!file) {
+      if (field === 'photo') setProfilePhoto(null);
+      if (field === 'idFront') setNationalIdFront(null);
+      if (field === 'idBack') setNationalIdBack(null);
+      return;
+    }
+
+    if (!editing) {
+      if (field === 'photo') setProfilePhoto(file);
+      if (field === 'idFront') setNationalIdFront(file);
+      if (field === 'idBack') setNationalIdBack(file);
+      return;
+    }
+
+    if (field === 'photo') setProfilePhoto(file);
+    if (field === 'idFront') setNationalIdFront(file);
+    if (field === 'idBack') setNationalIdBack(file);
+
+    setUploadingField(field);
+    setError('');
+    try {
+      const updated =
+        field === 'photo'
+          ? await usersApi.uploadProfilePhoto(editing.id, file)
+          : field === 'idFront'
+            ? await usersApi.uploadNationalIdFront(editing.id, file)
+            : await usersApi.uploadNationalIdBack(editing.id, file);
+      syncUser(updated);
+      if (field === 'photo') setProfilePhoto(null);
+      if (field === 'idFront') setNationalIdFront(null);
+      if (field === 'idBack') setNationalIdBack(null);
+    } catch (err) {
+      const message = err instanceof ApiClientError ? err.message : 'Upload failed.';
+      setError(message);
+      if (field === 'photo') setProfilePhoto(null);
+      if (field === 'idFront') setNationalIdFront(null);
+      if (field === 'idBack') setNationalIdBack(null);
+    } finally {
+      setUploadingField(null);
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -108,7 +190,13 @@ export function AdminUsersPage() {
     setViewing(user);
     try {
       const full = await usersApi.getById(user.id);
+      rememberPhotos(full);
       setViewing(full);
+      const listPhoto = getUserPhotoUrl(user, photoById);
+      const fullPhoto = getUserPhotoUrl(full);
+      if (fullPhoto && fullPhoto !== listPhoto) {
+        setRefreshKey((k) => k + 1);
+      }
     } catch {
       setViewing(user);
     } finally {
@@ -126,10 +214,12 @@ export function AdminUsersPage() {
     setEditing(null);
   };
 
-  const uploadDocuments = async (userId: string) => {
-    if (profilePhoto) await usersApi.uploadProfilePhoto(userId, profilePhoto);
-    if (nationalIdFront) await usersApi.uploadNationalIdFront(userId, nationalIdFront);
-    if (nationalIdBack) await usersApi.uploadNationalIdBack(userId, nationalIdBack);
+  const uploadDocuments = async (userId: string): Promise<User | null> => {
+    let latest: User | null = null;
+    if (profilePhoto) latest = await usersApi.uploadProfilePhoto(userId, profilePhoto);
+    if (nationalIdFront) latest = await usersApi.uploadNationalIdFront(userId, nationalIdFront);
+    if (nationalIdBack) latest = await usersApi.uploadNationalIdBack(userId, nationalIdBack);
+    return latest;
   };
 
   const handleSaveUser = async (e: FormEvent) => {
@@ -139,7 +229,7 @@ export function AdminUsersPage() {
     setSuccess('');
     try {
       if (editing) {
-        await usersApi.update(editing.id, {
+        const updated = await usersApi.update(editing.id, {
           userName: userForm.userName,
           email: userForm.email,
           firstName: userForm.firstName || undefined,
@@ -148,8 +238,10 @@ export function AdminUsersPage() {
           roles: [userForm.role],
           newPassword: userForm.newPassword || undefined,
         });
-        await uploadDocuments(editing.id);
+        const uploaded = await uploadDocuments(editing.id);
+        syncUser(uploaded ?? updated, editing);
         setSuccess('User updated successfully.');
+        closeUserModal();
       } else {
         const user = await usersApi.create({
           userName: userForm.userName,
@@ -159,11 +251,15 @@ export function AdminUsersPage() {
           lastName: userForm.lastName || undefined,
           roles: [userForm.role],
         });
-        await uploadDocuments(user.id);
+        const uploaded = await uploadDocuments(user.id);
+        if (uploaded) syncUser(uploaded, user);
+        else setRefreshKey((k) => k + 1);
+        setProfilePhoto(null);
+        setNationalIdFront(null);
+        setNationalIdBack(null);
         setSuccess(`${ROLES[userForm.role]} account created.`);
+        closeUserModal();
       }
-      closeUserModal();
-      setRefreshKey((k) => k + 1);
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : 'Failed to save user.';
       setError(message);
@@ -211,9 +307,19 @@ export function AdminUsersPage() {
     {
       key: 'photo',
       header: '',
-      render: (row: User) => (
-        <ProfileAvatar url={row.profileImageUrl} key={`${row.id}-${row.profileImageUrl ?? 'none'}-${refreshKey}`} />
-      ),
+      render: (row: User) => {
+        const photo = getUserPhotoUrl(row, photoById);
+        return (
+          <span className="table-photo-cell">
+            <ProfileAvatar
+              url={photo}
+              cacheBust={photo ? refreshKey : undefined}
+              eager
+              key={`${row.id}-${photo ?? 'none'}-${refreshKey}`}
+            />
+          </span>
+        );
+      },
     },
     { key: 'userName', header: 'Username', render: (row: User) => row.userName },
     {
@@ -272,15 +378,19 @@ export function AdminUsersPage() {
   return (
     <div className="admin-users-page">
       <div className="page-header">
-        <h2>Identity & Users</h2>
-        <p className="text-muted">Manage staff accounts, photos, and national ID documents.</p>
+        <h2>{isTeachersView ? 'Teachers' : 'Identity & Users'}</h2>
+        <p className="text-muted">
+          {isTeachersView
+            ? 'Manage teacher accounts, photos, and national ID documents.'
+            : 'Manage staff accounts, photos, and national ID documents.'}
+        </p>
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError('')} />}
       {success && <Alert type="success" message={success} onClose={() => setSuccess('')} />}
 
       <Card
-        title="User Directory"
+        title={isTeachersView ? 'Teacher Registry' : 'User Directory'}
         actions={
           <div className="card-actions-row">
             <Button size="sm" onClick={openCreate}>Add Staff / Teacher</Button>
@@ -319,8 +429,8 @@ export function AdminUsersPage() {
         footer={
           <div className="modal-footer">
             <Button variant="secondary" onClick={closeUserModal}>Cancel</Button>
-            <Button onClick={handleSaveUser} disabled={submitting}>
-              {submitting ? 'Saving...' : editing ? 'Save Changes' : 'Create Account'}
+            <Button onClick={handleSaveUser} disabled={submitting || uploadingField !== null}>
+              {submitting ? 'Saving...' : uploadingField ? 'Uploading…' : editing ? 'Save Changes' : 'Create Account'}
             </Button>
           </div>
         }
@@ -329,26 +439,32 @@ export function AdminUsersPage() {
           <div className="full-width photo-upload-row photo-upload-row-three">
             <PhotoUploadField
               label="Profile photo"
-              hint="Upload or capture a staff photo."
+              hint={editing ? 'Uploads immediately when you choose a file or capture.' : 'Uploads when you create the account.'}
               value={profilePhoto}
-              onChange={setProfilePhoto}
+              onChange={(file) => void instantUpload('photo', file)}
               existingUrl={editing?.profileImageUrl}
+              cacheBust={editing?.profileImageUrl ?? refreshKey}
+              uploading={uploadingField === 'photo'}
             />
             <PhotoUploadField
               label="National ID — front"
               hint="Front side (JPG, PNG, or PDF)."
               value={nationalIdFront}
-              onChange={setNationalIdFront}
+              onChange={(file) => void instantUpload('idFront', file)}
               acceptDocuments
               existingUrl={editing?.nationalIdFrontUrl}
+              cacheBust={editing?.nationalIdFrontUrl ?? refreshKey}
+              uploading={uploadingField === 'idFront'}
             />
             <PhotoUploadField
               label="National ID — back"
               hint="Back side (JPG, PNG, or PDF)."
               value={nationalIdBack}
-              onChange={setNationalIdBack}
+              onChange={(file) => void instantUpload('idBack', file)}
               acceptDocuments
               existingUrl={editing?.nationalIdBackUrl}
+              cacheBust={editing?.nationalIdBackUrl ?? refreshKey}
+              uploading={uploadingField === 'idBack'}
             />
           </div>
           <Input label="Username" value={userForm.userName} onChange={(e) => setUserForm({ ...userForm, userName: e.target.value })} required />

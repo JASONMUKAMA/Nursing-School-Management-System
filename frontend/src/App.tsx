@@ -30,6 +30,8 @@ import { SchedulingPage } from './features/scheduling/SchedulingPage';
 
 import { ReportsPage } from './features/reports/ReportsPage';
 
+import { IdsPage } from './features/ids/IdsPage';
+
 
 
 export default function App() {
@@ -74,6 +76,8 @@ export default function App() {
 
             <Route path="admissions" element={<AdmissionsPage />} />
 
+            <Route path="teachers" element={<AdminUsersPage />} />
+
           </Route>
 
 
@@ -107,6 +111,14 @@ export default function App() {
           <Route element={<ProtectedRoute roles={['Admin', 'FinanceOfficer', 'Registrar']} />}>
 
             <Route path="finance" element={<FinancePage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Registrar']} />}>
+
+            <Route path="ids" element={<IdsPage />} />
 
           </Route>
 

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button } from './Button';
 import { Modal } from './Modal';
-import { ProfileAvatar } from './ProfileAvatar';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 export interface ProfileField {
@@ -20,6 +19,7 @@ interface ProfileViewModalProps {
   nationalIdBackUrl?: string | null;
   fields: ProfileField[];
   onEdit?: () => void;
+  uploads?: ReactNode;
 }
 
 function isPdf(url: string) {
@@ -69,6 +69,7 @@ export function ProfileViewModal({
   nationalIdBackUrl,
   fields,
   onEdit,
+  uploads,
 }: ProfileViewModalProps) {
   return (
     <Modal
@@ -94,16 +95,25 @@ export function ProfileViewModal({
           {subtitle && <p className="profile-view-subtitle">{subtitle}</p>}
 
           <div className="profile-view-hero">
-            <ProfileAvatar
-              url={profilePhotoUrl}
-              className="profile-view-photo"
-              emptyClassName="profile-view-photo profile-view-photo-empty"
-            />
+            {profilePhotoUrl ? (
+              <img
+                src={resolveMediaUrl(profilePhotoUrl, profilePhotoUrl)}
+                alt=""
+                className="profile-view-photo"
+                style={{ display: 'block' }}
+              />
+            ) : (
+              <span className="profile-view-photo profile-view-photo-empty" aria-hidden>
+                👤
+              </span>
+            )}
             <div className="profile-view-id-grid">
               <IdPreview label="National ID — front" url={nationalIdFrontUrl} />
               <IdPreview label="National ID — back" url={nationalIdBackUrl} />
             </div>
           </div>
+
+          {uploads}
 
           <dl className="profile-view-fields">
             {fields.map((field) => (

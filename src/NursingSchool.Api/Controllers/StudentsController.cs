@@ -47,7 +47,8 @@ public class StudentsController(IStudentService studentService, IFileStorageServ
     [HttpPost("{id:guid}/profile-photo")]
     [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.Registrar}")]
     [RequestSizeLimit(6 * 1024 * 1024)]
-    public async Task<ActionResult<StudentResponse>> UploadProfilePhoto(Guid id, IFormFile file, CancellationToken ct)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<StudentResponse>> UploadProfilePhoto(Guid id, [FromForm] IFormFile file, CancellationToken ct)
     {
         if (file == null || file.Length == 0) return BadRequest(new { message = "Profile photo is required." });
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -66,7 +67,8 @@ public class StudentsController(IStudentService studentService, IFileStorageServ
     [HttpPost("{id:guid}/national-id/front")]
     [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.Registrar}")]
     [RequestSizeLimit(11 * 1024 * 1024)]
-    public async Task<ActionResult<StudentResponse>> UploadNationalIdFront(Guid id, IFormFile file, CancellationToken ct)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<StudentResponse>> UploadNationalIdFront(Guid id, [FromForm] IFormFile file, CancellationToken ct)
     {
         if (file == null || file.Length == 0) return BadRequest(new { message = "National ID front is required." });
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -85,7 +87,8 @@ public class StudentsController(IStudentService studentService, IFileStorageServ
     [HttpPost("{id:guid}/national-id/back")]
     [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.Registrar}")]
     [RequestSizeLimit(11 * 1024 * 1024)]
-    public async Task<ActionResult<StudentResponse>> UploadNationalIdBack(Guid id, IFormFile file, CancellationToken ct)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<StudentResponse>> UploadNationalIdBack(Guid id, [FromForm] IFormFile file, CancellationToken ct)
     {
         if (file == null || file.Length == 0) return BadRequest(new { message = "National ID back is required." });
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

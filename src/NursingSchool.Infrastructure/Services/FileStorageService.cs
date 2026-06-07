@@ -44,8 +44,11 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
             throw new InvalidOperationException($"File exceeds the maximum size of {maxBytes / (1024 * 1024)} MB.");
 
         var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension))
+            extension = GuessExtension(file.ContentType);
+
         if (string.IsNullOrWhiteSpace(extension) || !allowedExtensions.Contains(extension))
-            throw new InvalidOperationException("File type is not allowed.");
+            throw new InvalidOperationException("File type is not allowed. Use JPG, PNG, or PDF.");
 
         var uploadsRoot = Path.Combine(environment.ContentRootPath, "uploads", folder);
         Directory.CreateDirectory(uploadsRoot);
@@ -58,4 +61,14 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
 
         return $"/uploads/{folder}/{fileName}";
     }
+
+    private static string GuessExtension(string? contentType) =>
+        contentType?.ToLowerInvariant() switch
+        {
+            "image/jpeg" or "image/jpg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "application/pdf" => ".pdf",
+            _ => string.Empty,
+        };
 }

@@ -41,6 +41,7 @@ import type {
   TwoFactorSetupResponse,
   User,
 } from '../types';
+import { normalizeStudent } from '../utils/studentMedia';
 
 function pageQuery(page: number, pageSize: number, search?: string, extra?: Record<string, string>) {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
@@ -111,18 +112,39 @@ export const eventsApi = {
   markAllNotificationsRead: () => api.post<void>('/api/notifications/read-all', {}),
 };
 
+function normalizeStudentPage(result: PagedResult<Student>): PagedResult<Student> {
+  return {
+    ...result,
+    items: result.items.map((s) => normalizeStudent(s as Student & Record<string, unknown>)),
+  };
+}
+
 export const studentsApi = {
-  getAll: (page = 1, pageSize = 20, search?: string) =>
-    api.get<PagedResult<Student>>(`/api/students?${pageQuery(page, pageSize, search)}`),
-  getById: (id: string) => api.get<Student>(`/api/students/${id}`),
-  create: (data: CreateStudentRequest) => api.post<Student>('/api/students', data),
-  update: (id: string, data: UpdateStudentRequest) => api.put<Student>(`/api/students/${id}`, data),
-  uploadProfilePhoto: (studentId: string, file: File) =>
-    apiUpload<Student>(`/api/students/${studentId}/profile-photo`, file),
-  uploadNationalIdFront: (studentId: string, file: File) =>
-    apiUpload<Student>(`/api/students/${studentId}/national-id/front`, file),
-  uploadNationalIdBack: (studentId: string, file: File) =>
-    apiUpload<Student>(`/api/students/${studentId}/national-id/back`, file),
+  getAll: async (page = 1, pageSize = 20, search?: string) =>
+    normalizeStudentPage(
+      await api.get<PagedResult<Student>>(`/api/students?${pageQuery(page, pageSize, search)}`),
+    ),
+  getById: async (id: string) =>
+    normalizeStudent(await api.get<Student>(`/api/students/${id}`) as Student & Record<string, unknown>),
+  create: async (data: CreateStudentRequest) =>
+    normalizeStudent(await api.post<Student>('/api/students', data) as Student & Record<string, unknown>),
+  update: async (id: string, data: UpdateStudentRequest) =>
+    normalizeStudent(await api.put<Student>(`/api/students/${id}`, data) as Student & Record<string, unknown>),
+  uploadProfilePhoto: async (studentId: string, file: File) =>
+    normalizeStudent(
+      await apiUpload<Student>(`/api/students/${studentId}/profile-photo`, file) as Student &
+        Record<string, unknown>,
+    ),
+  uploadNationalIdFront: async (studentId: string, file: File) =>
+    normalizeStudent(
+      await apiUpload<Student>(`/api/students/${studentId}/national-id/front`, file) as Student &
+        Record<string, unknown>,
+    ),
+  uploadNationalIdBack: async (studentId: string, file: File) =>
+    normalizeStudent(
+      await apiUpload<Student>(`/api/students/${studentId}/national-id/back`, file) as Student &
+        Record<string, unknown>,
+    ),
 };
 
 export const applicationsApi = {

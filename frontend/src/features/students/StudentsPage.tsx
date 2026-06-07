@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { ApiClientError } from '../../api/client';
 import { academicApi, studentsApi } from '../../api/endpoints';
 import { Alert } from '../../components/ui/Alert';
@@ -8,13 +8,29 @@ import { EditRowButton } from '../../components/ui/EditRowButton';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { PhotoUploadField } from '../../components/ui/PhotoUploadField';
-import { ProfileAvatar } from '../../components/ui/ProfileAvatar';
 import { ProfileViewModal } from '../../components/ui/ProfileViewModal';
+import { StudentProfileUploads } from '../../components/ui/StudentProfileUploads';
 import { Select } from '../../components/ui/Select';
 import { ServerDataTable } from '../../components/ui/ServerDataTable';
 import { ViewRowButton } from '../../components/ui/ViewRowButton';
 import { useAuth } from '../../hooks/useAuth';
 import type { Program, Student } from '../../types';
+import { getStudentPhotoUrl, mergeStudentMedia } from '../../utils/studentMedia';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { hydrateStudentPhotos, setStudentPhoto } from '../../utils/studentPhotoStore';
+
+type UploadField = 'photo' | 'idFront' | 'idBack';
+
+type FieldUploadStatus = {
+  status: 'idle' | 'uploading' | 'saved' | 'error' | 'pending';
+  message?: string;
+};
+
+const emptyFieldStatus = (): Record<UploadField, FieldUploadStatus> => ({
+  photo: { status: 'idle' },
+  idFront: { status: 'idle' },
+  idBack: { status: 'idle' },
+});
 
 const STUDENT_STATUSES = [
   { value: 'Active', label: 'Active' },
@@ -82,23 +98,174 @@ export function StudentsPage() {
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [nationalIdFront, setNationalIdFront] = useState<File | null>(null);
   const [nationalIdBack, setNationalIdBack] = useState<File | null>(null);
+  const [uploadingField, setUploadingField] = useState<'photo' | 'idFront' | 'idBack' | null>(null);
+  const [fieldUploadStatus, setFieldUploadStatus] = useState(emptyFieldStatus);
+  const [modalError, setModalError] = useState('');
+  const [rowPatchTick, setRowPatchTick] = useState(0);
+  const rowPatchesRef = useRef<Record<string, Partial<Student>>>({});
+  const pendingFilesRef = useRef({
+    photo: null as File | null,
+    idFront: null as File | null,
+    idBack: null as File | null,
+  });
 
-  const fetchStudents = useCallback(
-    (page: number, pageSize: number, search: string) =>
-      studentsApi.getAll(page, pageSize, search || undefined),
-    [],
-  );
+  const applyRowPatch = (row: Student): Student => {
+    const patch = rowPatchesRef.current[row.id];
+    if (!patch) return row;
+    return mergeStudentMedia(row, patch as Student);
+  };
+
+  const rememberMedia = (...students: (Student | null | undefined)[]) => {
+    const valid = students.filter((s): s is Student => Boolean(s));
+    if (valid.length === 0) return;
+    hydrateStudentPhotos(valid);
+    let patches = rowPatchesRef.current;
+    let changed = false;
+    for (const student of valid) {
+      const photo = getStudentPhotoUrl(student);
+      if (photo) {
+        setStudentPhoto(student.id, photo);
+        if (patches[student.id]?.profilePhotoUrl !== photo) {
+          patches = {
+            ...patches,
+            [student.id]: { ...patches[student.id], profilePhotoUrl: photo },
+          };
+          changed = true;
+        }
+      }
+      if (student.nationalIdFrontUrl || student.nationalIdBackUrl) {
+        patches = {
+          ...patches,
+          [student.id]: {
+            ...patches[student.id],
+            nationalIdFrontUrl: student.nationalIdFrontUrl ?? patches[student.id]?.nationalIdFrontUrl,
+            nationalIdBackUrl: student.nationalIdBackUrl ?? patches[student.id]?.nationalIdBackUrl,
+          },
+        };
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    rowPatchesRef.current = patches;
+    setRowPatchTick((t) => t + 1);
+  };
+
+  const syncStudent = (updated: Student, preserve?: Student | null) => {
+    const base = preserve ?? editing;
+    const merged = base ? mergeStudentMedia(base, updated) : updated;
+    rememberMedia(merged);
+    setEditing(merged);
+    setRefreshKey((k) => k + 1);
+    if (viewing?.id === merged.id) setViewing(merged);
+  };
+
+  const fetchStudents = useCallback(async (page: number, pageSize: number, search: string) => {
+    const result = await studentsApi.getAll(page, pageSize, search || undefined);
+    rememberMedia(...result.items);
+    return {
+      ...result,
+      items: result.items.map((row) => applyRowPatch(row)),
+    };
+  }, []);
+
+  const setFieldStatus = (field: UploadField, status: FieldUploadStatus) => {
+    setFieldUploadStatus((prev) => ({ ...prev, [field]: status }));
+  };
+
+  const queueFile = (field: UploadField, file: File | null) => {
+    setModalError('');
+    if (!file) {
+      if (field === 'photo') {
+        setProfilePhoto(null);
+        pendingFilesRef.current.photo = null;
+      }
+      if (field === 'idFront') {
+        setNationalIdFront(null);
+        pendingFilesRef.current.idFront = null;
+      }
+      if (field === 'idBack') {
+        setNationalIdBack(null);
+        pendingFilesRef.current.idBack = null;
+      }
+      setFieldStatus(field, { status: 'idle' });
+      return;
+    }
+
+    if (field === 'photo') {
+      setProfilePhoto(file);
+      pendingFilesRef.current.photo = file;
+    }
+    if (field === 'idFront') {
+      setNationalIdFront(file);
+      pendingFilesRef.current.idFront = file;
+    }
+    if (field === 'idBack') {
+      setNationalIdBack(file);
+      pendingFilesRef.current.idBack = file;
+    }
+    setFieldStatus(field, {
+      status: 'pending',
+      message: 'Selected — press Save to upload.',
+    });
+  };
+
+  const instantUpload = async (field: UploadField, file: File | null) => {
+    if (!file) {
+      queueFile(field, null);
+      return;
+    }
+
+    if (!editing) {
+      queueFile(field, file);
+      return;
+    }
+
+    setUploadingField(field);
+    setModalError('');
+    setFieldStatus(field, { status: 'uploading', message: 'Uploading to server…' });
+    try {
+      const updated =
+        field === 'photo'
+          ? await studentsApi.uploadProfilePhoto(editing.id, file)
+          : field === 'idFront'
+            ? await studentsApi.uploadNationalIdFront(editing.id, file)
+            : await studentsApi.uploadNationalIdBack(editing.id, file);
+      syncStudent(updated, editing);
+      setFieldStatus(field, {
+        status: 'saved',
+        message:
+          field === 'photo'
+            ? 'Profile photo saved.'
+            : field === 'idFront'
+              ? 'National ID (front) saved.'
+              : 'National ID (back) saved.',
+      });
+    } catch (err) {
+      const message = err instanceof ApiClientError ? err.message : 'Upload failed.';
+      setFieldStatus(field, { status: 'error', message });
+      setModalError(message);
+    } finally {
+      setUploadingField(null);
+    }
+  };
 
   useEffect(() => {
     academicApi.getPrograms(1, 100).then((r) => setPrograms(r.items)).catch(() => {});
   }, []);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(emptyForm());
+  const clearPendingFiles = () => {
     setProfilePhoto(null);
     setNationalIdFront(null);
     setNationalIdBack(null);
+    pendingFilesRef.current = { photo: null, idFront: null, idBack: null };
+    setFieldUploadStatus(emptyFieldStatus());
+    setModalError('');
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm(emptyForm());
+    clearPendingFiles();
     setModalOpen(true);
   };
 
@@ -106,9 +273,12 @@ export function StudentsPage() {
     setViewOpen(false);
     setEditing(student);
     setForm(toForm(student));
-    setProfilePhoto(null);
-    setNationalIdFront(null);
-    setNationalIdBack(null);
+    clearPendingFiles();
+    setFieldUploadStatus({
+      photo: student.profilePhotoUrl ? { status: 'saved', message: 'Photo on file.' } : { status: 'idle' },
+      idFront: student.nationalIdFrontUrl ? { status: 'saved', message: 'Front on file.' } : { status: 'idle' },
+      idBack: student.nationalIdBackUrl ? { status: 'saved', message: 'Back on file.' } : { status: 'idle' },
+    });
     setModalOpen(true);
   };
 
@@ -118,7 +288,13 @@ export function StudentsPage() {
     setViewing(student);
     try {
       const full = await studentsApi.getById(student.id);
+      rememberMedia(full);
       setViewing(full);
+      const listPhoto = getStudentPhotoUrl(student);
+      const fullPhoto = getStudentPhotoUrl(full);
+      if (fullPhoto && fullPhoto !== listPhoto) {
+        setRefreshKey((k) => k + 1);
+      }
     } catch {
       setViewing(student);
     } finally {
@@ -136,32 +312,91 @@ export function StudentsPage() {
     setEditing(null);
   };
 
-  const uploadDocuments = async (studentId: string) => {
-    if (profilePhoto) await studentsApi.uploadProfilePhoto(studentId, profilePhoto);
-    if (nationalIdFront) await studentsApi.uploadNationalIdFront(studentId, nationalIdFront);
-    if (nationalIdBack) await studentsApi.uploadNationalIdBack(studentId, nationalIdBack);
+  const uploadDocuments = async (studentId: string): Promise<Student | null> => {
+    let latest: Student | null = null;
+    const tasks: { field: UploadField; file: File; upload: (id: string, f: File) => Promise<Student> }[] = [];
+
+    const photoFile = pendingFilesRef.current.photo;
+    const frontFile = pendingFilesRef.current.idFront;
+    const backFile = pendingFilesRef.current.idBack;
+
+    if (photoFile) {
+      tasks.push({ field: 'photo', file: photoFile, upload: studentsApi.uploadProfilePhoto });
+    }
+    if (frontFile) {
+      tasks.push({ field: 'idFront', file: frontFile, upload: studentsApi.uploadNationalIdFront });
+    }
+    if (backFile) {
+      tasks.push({ field: 'idBack', file: backFile, upload: studentsApi.uploadNationalIdBack });
+    }
+
+    for (const task of tasks) {
+      setUploadingField(task.field);
+      setFieldStatus(task.field, { status: 'uploading', message: 'Uploading to server…' });
+      try {
+        latest = await task.upload(studentId, task.file);
+        if (task.field === 'photo') {
+          setProfilePhoto(null);
+          pendingFilesRef.current.photo = null;
+        }
+        if (task.field === 'idFront') {
+          setNationalIdFront(null);
+          pendingFilesRef.current.idFront = null;
+        }
+        if (task.field === 'idBack') {
+          setNationalIdBack(null);
+          pendingFilesRef.current.idBack = null;
+        }
+        setFieldStatus(task.field, {
+          status: 'saved',
+          message:
+            task.field === 'photo'
+              ? 'Profile photo saved.'
+              : task.field === 'idFront'
+                ? 'National ID (front) saved.'
+                : 'National ID (back) saved.',
+        });
+      } catch (err) {
+        const message = err instanceof ApiClientError ? err.message : 'Upload failed.';
+        setFieldStatus(task.field, { status: 'error', message });
+        throw new ApiClientError(message, err instanceof ApiClientError ? err.status : 500);
+      }
+    }
+
+    setUploadingField(null);
+    return latest;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError('');
+    setModalError('');
     try {
       if (editing) {
-        await studentsApi.update(editing.id, form);
-        await uploadDocuments(editing.id);
-        setSuccess('Student updated successfully.');
+        const snapshot = editing;
+        await studentsApi.update(snapshot.id, form);
+        const fresh = await studentsApi.getById(snapshot.id);
+        syncStudent(fresh, snapshot);
+        clearPendingFiles();
+        closeModal();
+        setSuccess('Student saved.');
+        void openView(fresh);
       } else {
         const { status: _status, ...createPayload } = form;
         const student = await studentsApi.create(createPayload);
-        await uploadDocuments(student.id);
-        setSuccess('Student created successfully.');
+        const uploaded = await uploadDocuments(student.id);
+        const merged = uploaded ? mergeStudentMedia(student, uploaded) : student;
+        if (uploaded) syncStudent(merged, student);
+        else setRefreshKey((k) => k + 1);
+        clearPendingFiles();
+        closeModal();
+        setSuccess('Student created.');
+        if (uploaded?.profilePhotoUrl) void openView(merged);
       }
-      closeModal();
-      setRefreshKey((k) => k + 1);
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : 'Failed to save student.';
-      setError(message);
+      setModalError(message);
     } finally {
       setSubmitting(false);
     }
@@ -171,7 +406,27 @@ export function StudentsPage() {
     {
       key: 'photo',
       header: '',
-      render: (s: Student) => <ProfileAvatar url={s.profilePhotoUrl} key={`${s.id}-${s.profilePhotoUrl ?? 'none'}-${refreshKey}`} />,
+      render: (s: Student) => {
+        void rowPatchTick;
+        const row = applyRowPatch(s);
+        const src = resolveMediaUrl(row.profilePhotoUrl, row.profilePhotoUrl ?? refreshKey);
+        return (
+          <span className="table-photo-cell">
+            {src ? (
+              <img
+                key={`${s.id}-${row.profilePhotoUrl ?? 'none'}-${refreshKey}`}
+                src={src}
+                alt=""
+                className="table-avatar"
+                style={{ display: 'block' }}
+                loading="eager"
+              />
+            ) : (
+              <span className="table-avatar table-avatar-empty" aria-hidden>👤</span>
+            )}
+          </span>
+        );
+      },
     },
     { key: 'studentNo', header: 'Student No', render: (s: Student) => s.studentNo },
     { key: 'name', header: 'Name', render: (s: Student) => `${s.firstName} ${s.lastName}` },
@@ -181,12 +436,16 @@ export function StudentsPage() {
     {
       key: 'idDoc',
       header: 'National ID',
-      render: (s: Student) => (
-        <span className="id-doc-status">
-          <span className={`badge ${s.nationalIdFrontUrl ? 'badge-active' : 'badge-pending'}`}>Front</span>
-          <span className={`badge ${s.nationalIdBackUrl ? 'badge-active' : 'badge-pending'}`}>Back</span>
-        </span>
-      ),
+      render: (s: Student) => {
+        void rowPatchTick;
+        const row = applyRowPatch(s);
+        return (
+          <span className="id-doc-status">
+            <span className={`badge ${row.nationalIdFrontUrl ? 'badge-active' : 'badge-pending'}`}>Front</span>
+            <span className={`badge ${row.nationalIdBackUrl ? 'badge-active' : 'badge-pending'}`}>Back</span>
+          </span>
+        );
+      },
     },
     {
       key: 'status',
@@ -244,36 +503,59 @@ export function StudentsPage() {
         footer={
           <div className="modal-footer">
             <Button variant="secondary" onClick={closeModal}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'Saving...' : editing ? 'Save Changes' : 'Save Student'}
+            <Button type="submit" form="student-form" disabled={submitting || uploadingField !== null}>
+              {submitting
+                ? uploadingField
+                  ? 'Uploading files…'
+                  : 'Saving…'
+                : editing
+                  ? 'Save Changes'
+                  : 'Save Student'}
             </Button>
           </div>
         }
       >
-        <form className="form-grid" onSubmit={handleSubmit}>
+        <form id="student-form" className="form-grid" onSubmit={handleSubmit}>
+          {modalError && (
+            <div className="full-width">
+              <Alert type="error" message={modalError} onClose={() => setModalError('')} />
+            </div>
+          )}
           <div className="full-width photo-upload-row photo-upload-row-three">
             <PhotoUploadField
               label="Profile photo"
-              hint="Upload a photo or capture from your camera."
+              hint={editing ? 'Uploads immediately when you choose a file or capture.' : 'Uploads when you save the new student.'}
               value={profilePhoto}
-              onChange={setProfilePhoto}
+              onChange={(file) => void instantUpload('photo', file)}
               existingUrl={editing?.profilePhotoUrl}
+              cacheBust={editing?.profilePhotoUrl ?? refreshKey}
+              uploading={uploadingField === 'photo'}
+              uploadStatus={fieldUploadStatus.photo.status}
+              statusMessage={fieldUploadStatus.photo.message}
             />
             <PhotoUploadField
               label="National ID — front"
-              hint="Front side of national ID (JPG, PNG, or PDF)."
+              hint={editing ? 'Uploads immediately.' : 'Uploads when you save the new student.'}
               value={nationalIdFront}
-              onChange={setNationalIdFront}
+              onChange={(file) => void instantUpload('idFront', file)}
               acceptDocuments
               existingUrl={editing?.nationalIdFrontUrl}
+              cacheBust={editing?.nationalIdFrontUrl ?? refreshKey}
+              uploading={uploadingField === 'idFront'}
+              uploadStatus={fieldUploadStatus.idFront.status}
+              statusMessage={fieldUploadStatus.idFront.message}
             />
             <PhotoUploadField
               label="National ID — back"
-              hint="Back side of national ID (JPG, PNG, or PDF)."
+              hint={editing ? 'Uploads immediately.' : 'Uploads when you save the new student.'}
               value={nationalIdBack}
-              onChange={setNationalIdBack}
+              onChange={(file) => void instantUpload('idBack', file)}
               acceptDocuments
               existingUrl={editing?.nationalIdBackUrl}
+              cacheBust={editing?.nationalIdBackUrl ?? refreshKey}
+              uploading={uploadingField === 'idBack'}
+              uploadStatus={fieldUploadStatus.idBack.status}
+              statusMessage={fieldUploadStatus.idBack.message}
             />
           </div>
           <Input label="First Name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
@@ -301,6 +583,14 @@ export function StudentsPage() {
         nationalIdFrontUrl={viewing?.nationalIdFrontUrl}
         nationalIdBackUrl={viewing?.nationalIdBackUrl}
         onEdit={canManage && viewing ? () => openEdit(viewing) : undefined}
+        uploads={
+          canManage && viewing && !viewLoading ? (
+            <StudentProfileUploads
+              student={viewing}
+              onUpdated={(updated) => syncStudent(updated, viewing)}
+            />
+          ) : undefined
+        }
         fields={viewing ? [
           { label: 'Program', value: viewing.programName },
           { label: 'Status', value: viewing.status },

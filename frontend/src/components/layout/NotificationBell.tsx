@@ -5,6 +5,7 @@ import { eventsApi } from '../../api/endpoints';
 import { startNotificationConnection, type SignalRStatus } from '../../api/signalr';
 import { useAuth } from '../../hooks/useAuth';
 import { requestNotificationPermission, showNativeNotification } from '../../utils/pushNotifications';
+import { toast } from '../../utils/toast';
 
 import type { AppNotification, AppNotificationPayload } from '../../types';
 
@@ -50,8 +51,6 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [signalRStatus, setSignalRStatus] = useState<SignalRStatus>('connecting');
-  const [toast, setToast] = useState<AppNotificationPayload | null>(null);
-
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const loadNotifications = useCallback(async () => {
@@ -83,8 +82,7 @@ export function NotificationBell() {
         return [incoming, ...without].slice(0, 50);
       });
       showNativeNotification(payload);
-      setToast(payload);
-      window.setTimeout(() => setToast(null), 8000);
+      toast.notification(payload.title, payload.message);
     };
 
     void startNotificationConnection(handleNotification, setSignalRStatus).then((stop) => {
@@ -208,26 +206,6 @@ export function NotificationBell() {
           </div>
         )}
       </div>
-
-      {toast && (
-        <div className="toast-container notification-toast" aria-live="polite">
-          <div className="toast toast-info">
-            <div className="toast-content">
-              <strong>{toast.title}</strong>
-              <p>{toast.message}</p>
-              <span className="toast-category">{toast.category}</span>
-            </div>
-            <button
-              type="button"
-              className="toast-close"
-              onClick={() => setToast(null)}
-              aria-label="Dismiss notification"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }

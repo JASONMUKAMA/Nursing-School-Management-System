@@ -296,6 +296,7 @@ export function FinancePage() {
         title="New Invoice"
         isOpen={showInvoiceModal}
         onClose={() => setShowInvoiceModal(false)}
+        size="lg"
         footer={
           <div className="modal-footer">
             <Button variant="secondary" type="button" onClick={() => setShowInvoiceModal(false)}>
@@ -367,6 +368,7 @@ export function FinancePage() {
         title="Record Payment"
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
+        size="lg"
         footer={
           <div className="modal-footer">
             <Button variant="secondary" type="button" onClick={() => setShowPaymentModal(false)}>

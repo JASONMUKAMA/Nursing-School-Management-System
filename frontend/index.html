@@ -5,19 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#065a4e" />
     <meta name="description" content="Nursing School Management System — staff portal for students, finance, clinical, and academics." />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="NSMS" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
     <title>Nursing School Management System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+
+        var reloadKey = 'nsms-sw-reload';
+
+        function deleteAllCaches() {
+          if (!('caches' in window)) return Promise.resolve();
+          return caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+          });
+        }
+
+        function unregisterAll() {
+          return navigator.serviceWorker.getRegistrations().then(function (regs) {
+            return Promise.all(regs.map(function (r) { return r.unregister(); }));
+          });
+        }
+
+        if (navigator.serviceWorker.controller && !sessionStorage.getItem(reloadKey)) {
+          window.__NSMS_PURGING__ = true;
+          sessionStorage.setItem(reloadKey, '1');
+          Promise.all([unregisterAll(), deleteAllCaches()]).finally(function () {
+            location.reload();
+          });
+          return;
+        }
+
+        sessionStorage.removeItem(reloadKey);
+        void Promise.all([unregisterAll(), deleteAllCaches()]);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/boot.ts"></script>
   </body>
 </html>

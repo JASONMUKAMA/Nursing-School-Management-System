@@ -9,6 +9,11 @@ export interface PhotoUploadFieldProps {
   acceptDocuments?: boolean;
   required?: boolean;
   existingUrl?: string | null;
+  /** Bust browser cache when the server file at existingUrl was replaced. */
+  cacheBust?: string | number;
+  uploading?: boolean;
+  uploadStatus?: 'idle' | 'uploading' | 'saved' | 'error' | 'pending';
+  statusMessage?: string;
 }
 
 function fileToPreviewUrl(file: File): string {
@@ -23,6 +28,10 @@ export function PhotoUploadField({
   acceptDocuments = false,
   required = false,
   existingUrl = null,
+  cacheBust,
+  uploading = false,
+  uploadStatus = 'idle',
+  statusMessage,
 }: PhotoUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -40,9 +49,9 @@ export function PhotoUploadField({
       setPreviewUrl(url);
       return () => URL.revokeObjectURL(url);
     }
-    setPreviewUrl(resolveMediaUrl(existingUrl) ?? null);
+    setPreviewUrl(resolveMediaUrl(existingUrl, cacheBust) ?? null);
     return undefined;
-  }, [value, existingUrl]);
+  }, [value, existingUrl, cacheBust]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -137,11 +146,23 @@ export function PhotoUploadField({
 
   const accept = acceptDocuments
     ? 'image/jpeg,image/png,image/webp,application/pdf'
-    : 'image/jpeg,image/png,image/webp';
+    : 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
 
   const isImagePreview =
     (value?.type.startsWith('image/') ?? false) ||
     (!value && existingUrl != null && !existingUrl.toLowerCase().endsWith('.pdf'));
+
+  const effectiveStatus = uploading ? 'uploading' : uploadStatus;
+  const effectiveMessage =
+    effectiveStatus === 'uploading'
+      ? statusMessage ?? 'Uploading to server…'
+      : effectiveStatus === 'saved'
+        ? statusMessage ?? 'Saved to server.'
+        : effectiveStatus === 'error'
+          ? statusMessage ?? 'Upload failed.'
+          : effectiveStatus === 'pending'
+            ? statusMessage ?? 'Selected — press Save to upload.'
+            : undefined;
 
   return (
     <div className="photo-upload-field">
@@ -150,6 +171,12 @@ export function PhotoUploadField({
         {required && <span className="photo-upload-required"> *</span>}
       </span>
       {hint && <span className="photo-upload-hint">{hint}</span>}
+
+      {effectiveMessage && (
+        <span className={`photo-upload-banner photo-upload-banner-${effectiveStatus}`} role="status">
+          {effectiveMessage}
+        </span>
+      )}
 
       <div className="photo-upload-tabs">
         <button
@@ -174,23 +201,24 @@ export function PhotoUploadField({
       </div>
 
       {mode === 'upload' && (
-        <div className="photo-upload-dropzone">
+        <div className={`photo-upload-dropzone${uploading ? ' photo-upload-dropzone-busy' : ''}`}>
           {previewUrl && isImagePreview ? (
-            <img src={previewUrl} alt="" className="photo-upload-preview" />
+            <img src={previewUrl} alt="" className="photo-upload-preview" style={{ display: 'block' }} />
           ) : value ? (
             <span className="photo-upload-filename">{value.name}</span>
           ) : existingUrl ? (
-            <a href={resolveMediaUrl(existingUrl)} target="_blank" rel="noreferrer" className="photo-upload-link">
+            <a href={resolveMediaUrl(existingUrl, cacheBust)} target="_blank" rel="noreferrer" className="photo-upload-link">
               View current file
             </a>
           ) : (
             <span className="photo-upload-placeholder">No file selected</span>
           )}
+          {uploading && <span className="photo-upload-status">Uploading…</span>}
           <div className="photo-upload-actions">
-            <button type="button" className="photo-upload-btn" onClick={() => fileInputRef.current?.click()}>
+            <button type="button" className="photo-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
               Choose file
             </button>
-            {value && (
+            {value && !uploading && (
               <button type="button" className="photo-upload-btn photo-upload-btn-muted" onClick={() => handleFileChange(null)}>
                 Remove
               </button>
@@ -223,7 +251,7 @@ export function PhotoUploadField({
                 <p className="photo-upload-loading">Starting camera…</p>
               )}
               <div className="photo-upload-actions">
-                <button type="button" className="photo-upload-btn" onClick={capturePhoto} disabled={!cameraReady}>
+                <button type="button" className="photo-upload-btn" onClick={capturePhoto} disabled={!cameraReady || uploading}>
                   Capture photo
                 </button>
                 <button

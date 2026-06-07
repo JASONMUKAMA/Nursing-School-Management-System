@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from './Button';
 import { Input } from './Input';
 import { Loading } from './Loading';
 import type { PagedResult } from '../../types';
+import { toast } from '../../utils/toast';
 
 export interface Column<T> {
   key: string;
@@ -53,6 +54,8 @@ export function ServerDataTable<T>({
   const [loading, setLoading] = useState(true);
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState('');
+  const requestIdRef = useRef(0);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
@@ -66,26 +69,32 @@ export function ServerDataTable<T>({
   const querySearch = externalSearch !== undefined ? externalSearch : debouncedSearch;
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const requestId = ++requestIdRef.current;
+    if (!hasLoadedRef.current) setLoading(true);
     setError('');
     try {
       const result = await fetchData(page, pageSize, querySearch);
+      if (requestId !== requestIdRef.current) return;
       const items = result.items ?? (result as { Items?: T[] }).Items ?? [];
       const total = result.totalCount ?? (result as { TotalCount?: number }).TotalCount ?? 0;
       setData(items);
       setTotalCount(total);
+      hasLoadedRef.current = true;
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setData([]);
       setTotalCount(0);
-      setError(err instanceof Error ? err.message : 'Failed to load data.');
+      const message = err instanceof Error ? err.message : 'Failed to load data.';
+      setError(message);
+      toast.error(message);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [fetchData, page, pageSize, querySearch]);
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const getKey = (row: T): string =>
     typeof keyField === 'function' ? keyField(row) : String(row[keyField]);

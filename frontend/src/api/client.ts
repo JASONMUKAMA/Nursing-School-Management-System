@@ -1,4 +1,5 @@
 import type { ApiError } from '../types';
+import { prepareUploadFile } from '../utils/prepareUploadFile';
 
 const AUTH_STORAGE_KEY = 'nsms_auth';
 
@@ -90,30 +91,64 @@ export async function apiRequest<T>(
   return (await response.json()) as T;
 }
 
-export async function apiUpload<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
+function uploadAuthHeaders(): Headers {
   const headers = new Headers();
   const auth = getStoredAuth();
   if (auth?.accessToken) {
     headers.set('Authorization', `Bearer ${auth.accessToken}`);
   }
+  return headers;
+}
 
-  const body = new FormData();
-  body.append(fieldName, file);
+function isNetworkFailure(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  return false;
+}
 
-  const response = await fetch(path, { method: 'POST', headers, body });
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  if (response.status === 401) {
-    setStoredAuth(null);
-    onUnauthorized?.();
-    throw new ApiClientError('Session expired. Please log in again.', 401);
+export async function apiUpload<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
+  const prepared = await prepareUploadFile(file);
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const body = new FormData();
+    body.append(fieldName, prepared);
+    try {
+      const response = await fetch(path, { method: 'POST', headers: uploadAuthHeaders(), body });
+
+      if (response.status === 401) {
+        setStoredAuth(null);
+        onUnauthorized?.();
+        throw new ApiClientError('Session expired. Please log in again.', 401);
+      }
+
+      if (!response.ok) {
+        const message = await parseError(response);
+        throw new ApiClientError(message, response.status);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      lastError = error;
+      if (error instanceof ApiClientError) throw error;
+      if (attempt === 0 && isNetworkFailure(error)) {
+        await sleep(600);
+        continue;
+      }
+      break;
+    }
   }
 
-  if (!response.ok) {
-    const message = await parseError(response);
-    throw new ApiClientError(message, response.status);
+  if (isNetworkFailure(lastError)) {
+    throw new ApiClientError(
+      'Upload could not reach the server. Confirm Docker is running, then hard-refresh this page (Ctrl+Shift+R).',
+      0,
+    );
   }
 
-  return (await response.json()) as T;
+  throw lastError instanceof Error ? lastError : new ApiClientError('Upload failed.', 0);
 }
 
 export const api = {

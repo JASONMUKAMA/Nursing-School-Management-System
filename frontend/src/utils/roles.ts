@@ -136,6 +136,18 @@ export const NAV_GROUPS: NavGroup[] = [
 
       },
 
+      {
+
+        path: '/app/teachers',
+
+        label: 'Teachers',
+
+        icon: '👩‍🏫',
+
+        roles: ['Admin', 'Registrar'],
+
+      },
+
     ],
 
   },
@@ -271,6 +283,18 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: '💰',
 
         roles: ['Admin', 'FinanceOfficer', 'Registrar'],
+
+      },
+
+      {
+
+        path: '/app/ids',
+
+        label: 'IDs',
+
+        icon: '🪪',
+
+        roles: ['Admin', 'Registrar'],
 
       },
 
