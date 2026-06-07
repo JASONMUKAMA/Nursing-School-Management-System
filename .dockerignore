@@ -1,0 +1,9 @@
+**/bin
+**/obj
+**/.vs
+**/node_modules
+**/dist
+.git
+*.md
+Nursing_School_Management_System_Architecture.docx
+frontend

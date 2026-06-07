@@ -1,0 +1,154 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+
+import { AppLayout } from './components/layout/AppLayout';
+
+import { ProtectedRoute } from './components/ProtectedRoute';
+
+import { AdminUsersPage } from './features/admin/AdminUsersPage';
+
+import { LoginPage } from './features/auth/LoginPage';
+
+import { LandingPage } from './features/landing/LandingPage';
+
+import { DashboardPage } from './features/dashboard/DashboardPage';
+
+import { StudentsPage } from './features/students/StudentsPage';
+
+import { AdmissionsPage } from './features/admissions/AdmissionsPage';
+
+import { AcademicPage } from './features/academic/AcademicPage';
+
+import { AttendancePage } from './features/attendance/AttendancePage';
+
+import { ResultsPage } from './features/results/ResultsPage';
+
+import { FinancePage } from './features/finance/FinancePage';
+
+import { ClinicalPage } from './features/clinical/ClinicalPage';
+
+import { SchedulingPage } from './features/scheduling/SchedulingPage';
+
+import { ReportsPage } from './features/reports/ReportsPage';
+
+
+
+export default function App() {
+
+  return (
+
+    <Routes>
+
+      <Route path="/" element={<LandingPage />} />
+
+      <Route path="/login" element={<LoginPage />} />
+
+
+
+      <Route path="/app" element={<ProtectedRoute />}>
+
+        <Route element={<AppLayout />}>
+
+          <Route index element={<Navigate to="/app/dashboard" replace />} />
+
+          <Route path="dashboard" element={<DashboardPage />} />
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin']} />}>
+
+            <Route path="admin/users" element={<AdminUsersPage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Registrar', 'Lecturer', 'ClinicalCoordinator', 'FinanceOfficer']} />}>
+
+            <Route path="students" element={<StudentsPage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Registrar']} />}>
+
+            <Route path="admissions" element={<AdmissionsPage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Registrar', 'Lecturer']} />}>
+
+            <Route path="academic" element={<Navigate to="/app/academic/programs" replace />} />
+            <Route path="academic/*" element={<AcademicPage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Lecturer']} />}>
+
+            <Route path="attendance" element={<AttendancePage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Lecturer', 'Registrar', 'Student']} />}>
+
+            <Route path="results" element={<Navigate to="/app/results/view" replace />} />
+            <Route path="results/*" element={<ResultsPage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'FinanceOfficer', 'Registrar']} />}>
+
+            <Route path="finance" element={<FinancePage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'ClinicalCoordinator', 'Lecturer']} />}>
+
+            <Route path="clinical" element={<Navigate to="/app/clinical/facilities" replace />} />
+            <Route path="clinical/*" element={<ClinicalPage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Registrar', 'Lecturer', 'ClinicalCoordinator']} />}>
+
+            <Route path="scheduling" element={<Navigate to="/app/scheduling/calendar" replace />} />
+            <Route path="scheduling/*" element={<SchedulingPage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'FinanceOfficer', 'Registrar', 'Lecturer']} />}>
+
+            <Route path="reports" element={<Navigate to="/app/reports/fee-balances" replace />} />
+            <Route path="reports/*" element={<ReportsPage />} />
+
+          </Route>
+
+        </Route>
+
+      </Route>
+
+
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+
+    </Routes>
+
+  );
+
+}
+
+

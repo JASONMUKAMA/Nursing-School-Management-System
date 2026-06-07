@@ -1,0 +1,6 @@
+@NursingSchool.Api_HostAddress = http://localhost:5277
+
+GET {{NursingSchool.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
