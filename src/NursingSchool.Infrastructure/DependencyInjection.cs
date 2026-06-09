@@ -9,6 +9,7 @@ using NursingSchool.Infrastructure.Auth;
 using NursingSchool.Infrastructure.Data;
 using NursingSchool.Infrastructure.Email;
 using NursingSchool.ML;
+using NursingSchool.Infrastructure.Gateways;
 using NursingSchool.Infrastructure.HostedServices;
 using NursingSchool.Infrastructure.Services;
 
@@ -56,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IAcademicService, AcademicService>();
         services.AddScoped<IAttendanceService, AttendanceService>();
         services.AddScoped<IResultsService, ResultsService>();
+        services.AddHttpClient<JpesaGateway>();
         services.AddScoped<IFinanceService, FinanceService>();
         services.AddScoped<IClinicalService, ClinicalService>();
         services.AddScoped<IDashboardService, DashboardService>();

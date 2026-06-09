@@ -18,7 +18,13 @@ builder.Services.AddAuthorizationPolicies();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "http://localhost:3001", "http://frontend")
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://frontend",
+                "http://nursing.pameoinvestimentsltd.com",
+                "https://nursing.pameoinvestimentsltd.com")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());

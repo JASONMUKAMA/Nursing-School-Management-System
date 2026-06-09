@@ -4,6 +4,7 @@ import { dashboardApi, eventsApi } from '../../api/endpoints';
 import { Button } from '../../components/ui/Button';
 import { Loading } from '../../components/ui/Loading';
 import type { PublicStats, SchoolEvent } from '../../types';
+import { PublicPaySection } from './PublicPaySection';
 
 function formatEventDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-UG', {
@@ -75,6 +76,7 @@ export function LandingPage() {
           </div>
           <nav className="landing-nav-links">
             <a href="#about">About</a>
+            <a href="#pay">Pay Fees</a>
             <a href="#events">Events</a>
             <a href="#features">Programs</a>
             <Link to="/login">
@@ -98,14 +100,14 @@ export function LandingPage() {
             Pearl of Africa.
           </p>
           <div className="landing-hero-actions">
-            <Link to="/login">
-              <Button className="landing-cta-primary">Sign In to Portal</Button>
-            </Link>
-            <a href="#features">
-              <Button variant="secondary" className="landing-cta-secondary">
-                Explore Features
-              </Button>
+            <a href="#pay">
+              <Button className="landing-cta-primary">Pay School Fees</Button>
             </a>
+            <Link to="/login">
+              <Button variant="secondary" className="landing-cta-secondary">
+                Staff Portal
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -127,6 +129,8 @@ export function LandingPage() {
           )}
         </div>
       </section>
+
+      <PublicPaySection />
 
       <section className="landing-events" id="events">
         <div className="landing-section-inner">

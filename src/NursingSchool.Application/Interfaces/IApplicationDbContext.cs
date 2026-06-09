@@ -26,6 +26,7 @@ public interface IApplicationDbContext
     DbSet<Invoice> Invoices { get; }
     DbSet<InvoiceItem> InvoiceItems { get; }
     DbSet<Payment> Payments { get; }
+    DbSet<PaymentGatewayTransaction> PaymentGatewayTransactions { get; }
     DbSet<ClinicalFacility> ClinicalFacilities { get; }
     DbSet<ClinicalSupervisor> ClinicalSupervisors { get; }
     DbSet<ClinicalPlacement> ClinicalPlacements { get; }

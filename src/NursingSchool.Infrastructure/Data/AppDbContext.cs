@@ -31,6 +31,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentGatewayTransaction> PaymentGatewayTransactions => Set<PaymentGatewayTransaction>();
     public DbSet<ClinicalFacility> ClinicalFacilities => Set<ClinicalFacility>();
     public DbSet<ClinicalSupervisor> ClinicalSupervisors => Set<ClinicalSupervisor>();
     public DbSet<ClinicalPlacement> ClinicalPlacements => Set<ClinicalPlacement>();
@@ -60,6 +61,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         modelBuilder.Entity<Course>().HasIndex(x => x.Code).IsUnique();
         modelBuilder.Entity<Invoice>().HasIndex(x => x.InvoiceNo).IsUnique();
         modelBuilder.Entity<Payment>().HasIndex(x => x.ReceiptNo).IsUnique();
+        modelBuilder.Entity<PaymentGatewayTransaction>().HasIndex(x => x.ExternalTransactionId).IsUnique();
+        modelBuilder.Entity<PaymentGatewayTransaction>()
+            .HasOne(x => x.InitiatedByUser).WithMany().HasForeignKey(x => x.InitiatedBy).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<PaymentGatewayTransaction>()
+            .HasOne(x => x.Payment).WithMany().HasForeignKey(x => x.PaymentId).OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<Payment>()
+            .HasOne(x => x.GatewayTransaction).WithMany().HasForeignKey(x => x.GatewayTransactionId).OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Student>()
             .HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);

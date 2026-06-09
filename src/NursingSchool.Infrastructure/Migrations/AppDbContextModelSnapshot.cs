@@ -1203,10 +1203,22 @@ namespace NursingSchool.Infrastructure.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("BankReceiptNo")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CardLastFour")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExternalTransactionId")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("GatewayTransactionId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("InvoiceId")
@@ -1222,12 +1234,25 @@ namespace NursingSchool.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PaymentSource")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PayerPhone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderReference")
+                        .HasColumnType("text");
+
                     b.Property<string>("ReceiptNo")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("RecordedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("TransactionReference")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1242,9 +1267,88 @@ namespace NursingSchool.Infrastructure.Migrations
                     b.HasIndex("ReceiptNo")
                         .IsUnique();
 
+                    b.HasIndex("GatewayTransactionId");
+
                     b.HasIndex("RecordedBy");
 
                     b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("NursingSchool.Domain.Entities.PaymentGatewayTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime?>("CallbackReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExternalTransactionId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FailureReason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("InitiatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsReconciled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderReference")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RawResponse")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalTransactionId")
+                        .IsUnique();
+
+                    b.HasIndex("InitiatedBy");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("PaymentId");
+
+                    b.ToTable("PaymentGatewayTransactions");
                 });
 
             modelBuilder.Entity("NursingSchool.Domain.Entities.Program", b =>
@@ -1842,6 +1946,11 @@ namespace NursingSchool.Infrastructure.Migrations
 
             modelBuilder.Entity("NursingSchool.Domain.Entities.Payment", b =>
                 {
+                    b.HasOne("NursingSchool.Domain.Entities.PaymentGatewayTransaction", "GatewayTransaction")
+                        .WithMany()
+                        .HasForeignKey("GatewayTransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("NursingSchool.Domain.Entities.Invoice", "Invoice")
                         .WithMany("Payments")
                         .HasForeignKey("InvoiceId")
@@ -1854,9 +1963,37 @@ namespace NursingSchool.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("GatewayTransaction");
+
                     b.Navigation("Invoice");
 
                     b.Navigation("RecordedByUser");
+                });
+
+            modelBuilder.Entity("NursingSchool.Domain.Entities.PaymentGatewayTransaction", b =>
+                {
+                    b.HasOne("NursingSchool.Domain.Entities.ApplicationUser", "InitiatedByUser")
+                        .WithMany()
+                        .HasForeignKey("InitiatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NursingSchool.Domain.Entities.Invoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NursingSchool.Domain.Entities.Payment", "Payment")
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("InitiatedByUser");
+
+                    b.Navigation("Invoice");
+
+                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("NursingSchool.Domain.Entities.Semester", b =>

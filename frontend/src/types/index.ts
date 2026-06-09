@@ -440,9 +440,33 @@ export interface Payment {
   id: string;
   receiptNo: string;
   invoiceId: string;
+  invoiceNo: string;
+  studentName: string;
   amount: number;
   paymentMethod: string;
   paymentDate: string;
+  paymentSource: string;
+  transactionReference?: string | null;
+  payerPhone?: string | null;
+  cardLastFour?: string | null;
+  bankReceiptNo?: string | null;
+  providerReference?: string | null;
+}
+
+export interface GatewayTransaction {
+  id: string;
+  invoiceId: string;
+  invoiceNo: string;
+  studentName: string;
+  amount: number;
+  phoneNumber: string;
+  externalTransactionId: string;
+  providerReference?: string | null;
+  status: string;
+  failureReason?: string | null;
+  receiptNo?: string | null;
+  createdAt: string;
+  verifiedAt?: string | null;
 }
 
 export interface FeeBalanceRow {
@@ -456,6 +480,25 @@ export interface FeeBalanceRow {
   feeStatus: string;
   nextDueDate: string | null;
   lastPaymentDate: string | null;
+}
+
+export interface PublicStudentFeeInvoice {
+  id: string;
+  invoiceNo: string;
+  academicYear: string;
+  balance: number;
+  status: string;
+  dueDate: string | null;
+}
+
+export interface PublicStudentFeeSummary {
+  studentId: string;
+  studentNo: string;
+  studentName: string;
+  programName: string;
+  outstandingBalance: number;
+  feeStatus: string;
+  openInvoices: PublicStudentFeeInvoice[];
 }
 
 export interface ClinicalFacility {

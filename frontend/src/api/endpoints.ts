@@ -19,6 +19,7 @@ import type {
   Enrollment,
   FeeBalanceRow,
   FinanceDashboard,
+  GatewayTransaction,
   Invoice,
   LoginRequest,
   LoginResponse,
@@ -27,6 +28,7 @@ import type {
   PagedResult,
   Payment,
   PaymentSummaryRow,
+  PublicStudentFeeSummary,
   Program,
   PublicStats,
   SchoolEvent,
@@ -241,12 +243,57 @@ export const financeApi = {
     dueDate: string;
     items: { description: string; amount: number }[];
   }) => api.post<Invoice>('/api/invoices', data),
+  getPayments: (page = 1, pageSize = 20, search?: string, paymentMethod?: string) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (search) params.set('search', search);
+    if (paymentMethod) params.set('paymentMethod', paymentMethod);
+    return api.get<PagedResult<Payment>>(`/api/payments?${params}`);
+  },
+  isJpesaConfigured: () => api.get<{ configured: boolean }>('/api/payments/jpesa-configured'),
+  initiateMobileMoney: (data: { invoiceId: string; amount: number; phoneNumber: string }) =>
+    api.post<{
+      transactionId: string;
+      externalTransactionId: string;
+      status: string;
+      providerReference?: string | null;
+      message?: string | null;
+    }>('/api/payments/initiate-mobile-money', data),
+  getGatewayTransaction: (id: string) =>
+    api.get<GatewayTransaction>(`/api/payments/gateway-transactions/${id}`),
   recordPayment: (data: {
     invoiceId: string;
     amount: number;
     paymentMethod: string;
     paymentDate: string;
+    transactionReference?: string;
+    payerPhone?: string;
+    cardLastFour?: string;
+    bankReceiptNo?: string;
   }) => api.post<Payment>('/api/payments', data),
+};
+
+export const publicFinanceApi = {
+  isJpesaConfigured: () => api.get<{ configured: boolean }>('/api/public/payments/jpesa-configured', true),
+  getStudentFees: (studentNo: string) =>
+    api.get<PublicStudentFeeSummary>(`/api/public/students/${encodeURIComponent(studentNo.trim())}/fees`, true),
+  initiateMobileMoney: (data: {
+    studentNo: string;
+    invoiceId: string;
+    amount: number;
+    phoneNumber: string;
+  }) =>
+    api.post<{
+      transactionId: string;
+      externalTransactionId: string;
+      status: string;
+      providerReference?: string | null;
+      message?: string | null;
+    }>('/api/public/payments/initiate-mobile-money', data, true),
+  getGatewayTransaction: (id: string, studentNo: string) =>
+    api.get<GatewayTransaction>(
+      `/api/public/payments/gateway-transactions/${id}?studentNo=${encodeURIComponent(studentNo.trim())}`,
+      true,
+    ),
 };
 
 export const clinicalApi = {

@@ -5,10 +5,11 @@ using NursingSchool.Application.Helpers;
 using NursingSchool.Application.Interfaces;
 using NursingSchool.Domain.Entities;
 using NursingSchool.Domain.Enums;
+using NursingSchool.Infrastructure.Gateways;
 
 namespace NursingSchool.Infrastructure.Services;
 
-public class FinanceService(IApplicationDbContext db) : IFinanceService
+public partial class FinanceService(IApplicationDbContext db, JpesaGateway jpesaGateway) : IFinanceService
 {
     public async Task<FeeStructureResponse> CreateFeeStructureAsync(CreateFeeStructureRequest request, CancellationToken ct = default)
     {
@@ -85,7 +86,20 @@ public class FinanceService(IApplicationDbContext db) : IFinanceService
 
     public async Task<PaymentResponse> RecordPaymentAsync(CreatePaymentRequest request, Guid recordedBy, CancellationToken ct = default)
     {
-        var invoice = await db.Invoices.Include(i => i.Payments).FirstAsync(i => i.Id == request.InvoiceId, ct);
+        ValidatePaymentRequest(request);
+
+        var invoice = await db.Invoices
+            .Include(i => i.Payments)
+            .Include(i => i.Student)
+            .FirstAsync(i => i.Id == request.InvoiceId, ct);
+
+        if (request.Amount <= 0)
+            throw new InvalidOperationException("Payment amount must be greater than zero.");
+
+        var balance = InvoiceCalculator.GetBalance(invoice);
+        if (request.Amount > balance)
+            throw new InvalidOperationException($"Payment exceeds invoice balance of UGX {balance:N0}.");
+
         var count = await db.Payments.CountAsync(ct);
         var payment = new Payment
         {
@@ -94,6 +108,11 @@ public class FinanceService(IApplicationDbContext db) : IFinanceService
             Amount = request.Amount,
             PaymentMethod = request.PaymentMethod,
             PaymentDate = request.PaymentDate,
+            TransactionReference = string.IsNullOrWhiteSpace(request.TransactionReference) ? null : request.TransactionReference.Trim(),
+            PayerPhone = string.IsNullOrWhiteSpace(request.PayerPhone) ? null : request.PayerPhone.Trim(),
+            CardLastFour = string.IsNullOrWhiteSpace(request.CardLastFour) ? null : request.CardLastFour.Trim(),
+            BankReceiptNo = string.IsNullOrWhiteSpace(request.BankReceiptNo) ? null : request.BankReceiptNo.Trim(),
+            PaymentSource = PaymentSources.Manual,
             RecordedBy = recordedBy,
             CreatedBy = recordedBy
         };
@@ -101,8 +120,90 @@ public class FinanceService(IApplicationDbContext db) : IFinanceService
         invoice.Payments.Add(payment);
         invoice.Status = InvoiceCalculator.GetStatus(invoice);
         await db.SaveChangesAsync(ct);
-        return new PaymentResponse(payment.Id, payment.ReceiptNo, payment.InvoiceId, payment.Amount, payment.PaymentMethod, payment.PaymentDate);
+        return MapPayment(payment, invoice.InvoiceNo, $"{invoice.Student.FirstName} {invoice.Student.LastName}");
     }
+
+    public async Task<PagedResult<PaymentResponse>> GetPaymentsAsync(string? paymentMethod, PaginationQuery query, CancellationToken ct = default)
+    {
+        var q = db.Payments
+            .Include(p => p.Invoice).ThenInclude(i => i.Student)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(paymentMethod))
+            q = q.Where(p => p.PaymentMethod == paymentMethod);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var s = query.Search.ToLower();
+            q = q.Where(p =>
+                p.ReceiptNo.ToLower().Contains(s)
+                || p.Invoice.InvoiceNo.ToLower().Contains(s)
+                || p.Invoice.Student.FirstName.ToLower().Contains(s)
+                || p.Invoice.Student.LastName.ToLower().Contains(s)
+                || (p.TransactionReference != null && p.TransactionReference.ToLower().Contains(s)));
+        }
+
+        var total = await q.CountAsync(ct);
+        var rows = await q
+            .OrderByDescending(p => p.PaymentDate)
+            .ThenByDescending(p => p.CreatedAt)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+        var items = rows
+            .Select(p => MapPayment(
+                p,
+                p.Invoice.InvoiceNo,
+                $"{p.Invoice.Student.FirstName} {p.Invoice.Student.LastName}"))
+            .ToList();
+
+        return new PagedResult<PaymentResponse> { Items = items, TotalCount = total, Page = query.Page, PageSize = query.PageSize };
+    }
+
+    private static void ValidatePaymentRequest(CreatePaymentRequest request)
+    {
+        if (!PaymentMethods.All.Contains(request.PaymentMethod))
+            throw new InvalidOperationException($"Invalid payment method. Allowed: {string.Join(", ", PaymentMethods.All)}.");
+
+        if (request.PaymentMethod is PaymentMethods.AirtelMoney or PaymentMethods.MtnMobileMoney)
+        {
+            if (string.IsNullOrWhiteSpace(request.PayerPhone))
+                throw new InvalidOperationException($"{request.PaymentMethod} phone number is required.");
+            if (string.IsNullOrWhiteSpace(request.TransactionReference))
+                throw new InvalidOperationException($"{request.PaymentMethod} transaction ID is required.");
+        }
+
+        if (request.PaymentMethod == PaymentMethods.VisaCard)
+        {
+            if (string.IsNullOrWhiteSpace(request.TransactionReference))
+                throw new InvalidOperationException("Visa authorization / reference number is required.");
+            if (!string.IsNullOrWhiteSpace(request.CardLastFour) && request.CardLastFour.Trim().Length != 4)
+                throw new InvalidOperationException("Card last four digits must be exactly 4 characters.");
+        }
+
+        if (request.PaymentMethod == PaymentMethods.BankTransfer)
+        {
+            if (string.IsNullOrWhiteSpace(request.BankReceiptNo) && string.IsNullOrWhiteSpace(request.TransactionReference))
+                throw new InvalidOperationException("Bank receipt number or transaction reference is required.");
+        }
+    }
+
+    private static PaymentResponse MapPayment(Payment payment, string invoiceNo, string studentName) =>
+        new(
+            payment.Id,
+            payment.ReceiptNo,
+            payment.InvoiceId,
+            invoiceNo,
+            studentName,
+            payment.Amount,
+            payment.PaymentMethod,
+            payment.PaymentDate,
+            payment.PaymentSource,
+            payment.TransactionReference,
+            payment.PayerPhone,
+            payment.CardLastFour,
+            payment.BankReceiptNo,
+            payment.ProviderReference);
 
     public async Task<PagedResult<FeeBalanceReportRow>> GetFeeBalanceReportAsync(Guid? programId, PaginationQuery query, CancellationToken ct = default)
     {

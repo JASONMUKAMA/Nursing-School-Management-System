@@ -3,6 +3,7 @@ import { analyticsApi, dashboardApi, financeApi } from '../../api/endpoints';
 import { ApiClientError } from '../../api/client';
 import { PredictionAlerts } from '../../components/charts/DashboardCharts';
 import { InvoicePaymentSummary } from '../../components/finance/InvoicePaymentSummary';
+import { PaymentsPortal } from '../../components/finance/PaymentsPortal';
 import { StudentFeeContextPanel } from '../../components/finance/StudentFeeContextPanel';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -43,9 +44,12 @@ function formatUgxCompact(value: number) {
   return value.toLocaleString();
 }
 
+type FinanceTab = 'invoices' | 'payments-portal';
+
 export function FinancePage() {
   const { hasRole } = useAuth();
   const canManage = hasRole('Admin', 'FinanceOfficer');
+  const [activeTab, setActiveTab] = useState<FinanceTab>('invoices');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -220,14 +224,45 @@ export function FinancePage() {
       {error && <Alert type="error" message={error} onClose={() => setError('')} />}
       {success && <Alert type="success" message={success} onClose={() => setSuccess('')} />}
 
-      {canManage && !summaryLoading && insights && (
+      {canManage && activeTab === 'invoices' && !summaryLoading && insights && (
         <Card title="Predictions" className="dashboard-section-card">
           <PredictionAlerts insights={insights} />
           {insights.summary && <p className="text-muted context-panel-meta">{insights.summary}</p>}
         </Card>
       )}
 
-      {canManage && !summaryLoading && financeSummary && (
+      {canManage && (
+        <div className="tabs finance-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            className={`tab${activeTab === 'invoices' ? ' active' : ''}`}
+            aria-selected={activeTab === 'invoices'}
+            onClick={() => setActiveTab('invoices')}
+          >
+            Invoices
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`tab${activeTab === 'payments-portal' ? ' active' : ''}`}
+            aria-selected={activeTab === 'payments-portal'}
+            onClick={() => setActiveTab('payments-portal')}
+          >
+            Payments Portal
+          </button>
+        </div>
+      )}
+
+      {canManage && activeTab === 'payments-portal' && (
+        <PaymentsPortal
+          onPaymentRecorded={() => setRefreshKey((k) => k + 1)}
+          onError={(message) => setError(message)}
+          onSuccess={(message) => setSuccess(message)}
+        />
+      )}
+
+      {canManage && !summaryLoading && financeSummary && activeTab === 'invoices' && (
         <div className="stats-grid stats-grid-compact finance-quick-stats">
           <div className="stat-card-v2 stat-card-money">
             <div className="stat-card-v2-body">
@@ -250,6 +285,7 @@ export function FinancePage() {
         </div>
       )}
 
+      {(activeTab === 'invoices' || !canManage) && (
       <Card
         title="Invoices"
         actions={
@@ -291,6 +327,7 @@ export function FinancePage() {
           refreshKey={refreshKey}
         />
       </Card>
+      )}
 
       <Modal
         title="New Invoice"

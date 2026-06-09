@@ -63,18 +63,64 @@ public class FinanceController(IFinanceService financeService, INotificationServ
         }
     }
 
+    [HttpGet("payments/jpesa-configured")]
+    [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.FinanceOfficer}")]
+    public ActionResult<object> IsJpesaConfigured([FromServices] NursingSchool.Infrastructure.Gateways.JpesaGateway gateway) =>
+        Ok(new { configured = gateway.IsConfigured });
+
+    [HttpPost("payments/initiate-mobile-money")]
+    [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.FinanceOfficer}")]
+    public async Task<ActionResult<InitiateMobileMoneyPaymentResponse>> InitiateMobileMoney(
+        [FromBody] InitiateMobileMoneyPaymentRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await financeService.InitiateMobileMoneyPaymentAsync(request, userId, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("payments/gateway-transactions/{id:guid}")]
+    [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.FinanceOfficer}")]
+    public async Task<ActionResult<GatewayTransactionResponse>> GetGatewayTransaction(Guid id, CancellationToken ct)
+    {
+        var tx = await financeService.GetGatewayTransactionAsync(id, ct);
+        return tx is null ? NotFound() : Ok(tx);
+    }
+
+    [HttpGet("payments")]
+    [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.FinanceOfficer}")]
+    public async Task<ActionResult<PagedResult<PaymentResponse>>> GetPayments(
+        [FromQuery] string? paymentMethod,
+        [FromQuery] PaginationQuery query,
+        CancellationToken ct) =>
+        Ok(await financeService.GetPaymentsAsync(paymentMethod, query, ct));
+
     [HttpPost("payments")]
     [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.FinanceOfficer}")]
     public async Task<ActionResult<PaymentResponse>> RecordPayment([FromBody] CreatePaymentRequest request, CancellationToken ct)
     {
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var payment = await financeService.RecordPaymentAsync(request, userId, ct);
-        await notificationService.BroadcastToStaffAsync(
-            "Payment Recorded",
-            $"Receipt {payment.ReceiptNo} — UGX {payment.Amount:N0} via {payment.PaymentMethod}.",
-            "Finance",
-            ct: ct);
-        return Ok(payment);
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var payment = await financeService.RecordPaymentAsync(request, userId, ct);
+            await notificationService.BroadcastToStaffAsync(
+                "Payment Recorded",
+                $"Receipt {payment.ReceiptNo} — UGX {payment.Amount:N0} via {payment.PaymentMethod}.",
+                "Finance",
+                ct: ct);
+            return Ok(payment);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
 

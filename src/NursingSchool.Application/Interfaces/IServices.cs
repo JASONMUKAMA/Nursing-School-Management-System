@@ -57,9 +57,16 @@ public interface IFinanceService
     Task<PagedResult<InvoiceResponse>> GetInvoicesAsync(PaginationQuery query, CancellationToken ct = default);
     Task<InvoiceResponse?> GetInvoiceByIdAsync(Guid id, CancellationToken ct = default);
     Task<PaymentResponse> RecordPaymentAsync(CreatePaymentRequest request, Guid recordedBy, CancellationToken ct = default);
+    Task<InitiateMobileMoneyPaymentResponse> InitiateMobileMoneyPaymentAsync(InitiateMobileMoneyPaymentRequest request, Guid initiatedBy, CancellationToken ct = default);
+    Task<GatewayTransactionResponse?> GetGatewayTransactionAsync(Guid id, CancellationToken ct = default);
+    Task<object> ProcessJpesaCallbackAsync(string body, CancellationToken ct = default);
+    Task<PagedResult<PaymentResponse>> GetPaymentsAsync(string? paymentMethod, PaginationQuery query, CancellationToken ct = default);
     Task<PagedResult<FeeBalanceReportRow>> GetFeeBalanceReportAsync(Guid? programId, PaginationQuery query, CancellationToken ct = default);
     Task<decimal> GetStudentOutstandingBalanceAsync(Guid studentId, CancellationToken ct = default);
     Task<StudentInvoicePreviewResponse> GetStudentInvoicePreviewAsync(Guid studentId, CancellationToken ct = default);
+    Task<PublicStudentFeeSummaryResponse?> GetPublicStudentFeesByStudentNoAsync(string studentNo, CancellationToken ct = default);
+    Task<InitiateMobileMoneyPaymentResponse> InitiatePublicMobileMoneyPaymentAsync(PublicInitiateMobileMoneyPaymentRequest request, CancellationToken ct = default);
+    Task<GatewayTransactionResponse?> GetPublicGatewayTransactionAsync(Guid id, string studentNo, CancellationToken ct = default);
 }
 
 public interface IClinicalService
