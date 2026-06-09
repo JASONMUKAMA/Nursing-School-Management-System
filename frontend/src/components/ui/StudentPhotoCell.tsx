@@ -1,13 +1,15 @@
 import { useSyncExternalStore } from 'react';
+import { ZoomableImage } from './ZoomableImage';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getStudentPhoto, subscribeStudentPhotos } from '../../utils/studentPhotoStore';
 
 interface StudentPhotoCellProps {
   studentId: string;
   url?: string | null;
+  zoomLabel?: string;
 }
 
-export function StudentPhotoCell({ studentId, url }: StudentPhotoCellProps) {
+export function StudentPhotoCell({ studentId, url, zoomLabel }: StudentPhotoCellProps) {
   const photo = useSyncExternalStore(
     subscribeStudentPhotos,
     () => getStudentPhoto(studentId) ?? url ?? null,
@@ -25,13 +27,11 @@ export function StudentPhotoCell({ studentId, url }: StudentPhotoCellProps) {
   }
 
   return (
-    <img
+    <ZoomableImage
       src={src}
       alt=""
       className="table-avatar"
-      style={{ display: 'block' }}
-      loading="eager"
-      decoding="async"
+      zoomLabel={zoomLabel ?? 'Profile photo'}
     />
   );
 }

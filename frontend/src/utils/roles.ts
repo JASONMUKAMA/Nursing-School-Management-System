@@ -4,15 +4,15 @@ import type { Role, User } from '../types';
 
 export const ROLES: Record<Role, string> = {
 
-  Admin: 'Administrator',
+  Admin: 'System Administrator',
 
-  Registrar: 'Registrar',
+  Registrar: 'Principal / Registrar',
 
   Lecturer: 'Lecturer',
 
   ClinicalCoordinator: 'Clinical Coordinator',
 
-  FinanceOfficer: 'Finance Officer',
+  FinanceOfficer: 'Bursar',
 
   Student: 'Student',
 
@@ -354,9 +354,33 @@ export const NAV_GROUPS: NavGroup[] = [
 
         path: '/app/admin/users',
 
-        label: 'User Identity',
+        label: 'User Accounts',
 
-        icon: '🔐',
+        icon: '👤',
+
+        roles: ['Admin'],
+
+      },
+
+      {
+
+        path: '/app/admin/administrators',
+
+        label: 'Administrators',
+
+        icon: '🏛️',
+
+        roles: ['Admin'],
+
+      },
+
+      {
+
+        path: '/app/admin/activity-logs',
+
+        label: 'Activity Logs',
+
+        icon: '📜',
 
         roles: ['Admin'],
 

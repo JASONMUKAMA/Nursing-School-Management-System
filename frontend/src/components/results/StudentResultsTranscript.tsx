@@ -1,5 +1,7 @@
 import { Button } from '../ui/Button';
+import { ZoomableImage } from '../ui/ZoomableImage';
 import type { Student, StudentResult } from '../../types';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { averageScore, printStudentTranscript, studentFullName } from '../../utils/printStudentTranscript';
 
 interface StudentResultsTranscriptProps {
@@ -15,6 +17,7 @@ export function StudentResultsTranscript({
 }: StudentResultsTranscriptProps) {
   const avg = averageScore(results);
   const issuedAt = new Date().toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' });
+  const photoUrl = resolveMediaUrl(student?.profilePhotoUrl, student?.profilePhotoUrl ?? student?.id);
 
   if (!student) {
     return null;
@@ -35,9 +38,25 @@ export function StudentResultsTranscript({
 
       <div className="student-transcript-sheet">
         <header className="student-transcript-header">
-          <p className="student-transcript-school">Nursing School Management System</p>
-          <h3 className="student-transcript-title">{title}</h3>
-          <p className="student-transcript-subtitle">Official Academic Record</p>
+          <div className="student-transcript-hero">
+            {photoUrl ? (
+              <ZoomableImage
+                src={photoUrl}
+                alt={`${studentFullName(student)} profile photo`}
+                className="student-transcript-photo"
+                zoomLabel={`${studentFullName(student)} — profile photo`}
+              />
+            ) : (
+              <span className="student-transcript-photo student-transcript-photo-empty" aria-hidden>
+                👤
+              </span>
+            )}
+            <div className="student-transcript-header-text">
+              <p className="student-transcript-school">Nursing School Management System</p>
+              <h3 className="student-transcript-title">{title}</h3>
+              <p className="student-transcript-subtitle">Official Academic Record</p>
+            </div>
+          </div>
         </header>
 
         <dl className="student-transcript-meta">

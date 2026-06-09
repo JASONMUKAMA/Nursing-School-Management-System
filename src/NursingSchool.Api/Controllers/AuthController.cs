@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NursingSchool.Api.Http;
 using NursingSchool.Application.Common;
 using NursingSchool.Application.DTOs;
 using NursingSchool.Application.Interfaces;
@@ -11,13 +12,16 @@ namespace NursingSchool.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(IAuthService authService, ILoginActivityService loginActivityService) : ControllerBase
 {
+    private LoginClientInfo ClientInfo() =>
+        new(ClientIpHelper.GetClientIpAddress(HttpContext), ClientIpHelper.GetUserAgent(HttpContext));
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        try { return Ok(await authService.LoginAsync(request, ct)); }
+        try { return Ok(await authService.LoginAsync(request, ClientInfo(), ct)); }
         catch (TwoFactorRequiredException ex)
         {
             return Ok(new LoginResponse("", "", DateTime.UtcNow,
@@ -30,9 +34,16 @@ public class AuthController(IAuthService authService) : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login2Fa([FromBody] TwoFactorLoginRequest request, CancellationToken ct)
     {
-        try { return Ok(await authService.LoginWith2FaAsync(request, ct)); }
+        try { return Ok(await authService.LoginWith2FaAsync(request, ClientInfo(), ct)); }
         catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
     }
+
+    [HttpGet("activity-logs")]
+    [Authorize(Roles = RoleNames.Admin)]
+    public async Task<ActionResult<PagedResult<LoginActivityResponse>>> GetActivityLogs(
+        [FromQuery] PaginationQuery query,
+        CancellationToken ct) =>
+        Ok(await loginActivityService.GetLoginActivitiesAsync(query, ct));
 
     [HttpGet("2fa/setup")]
     [Authorize]

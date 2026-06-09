@@ -37,6 +37,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<ClinicalPlacement> ClinicalPlacements => Set<ClinicalPlacement>();
     public DbSet<ClinicalEvaluation> ClinicalEvaluations => Set<ClinicalEvaluation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<LoginActivity> LoginActivities => Set<LoginActivity>();
     public DbSet<SchoolEvent> SchoolEvents => Set<SchoolEvent>();
     public DbSet<AppNotification> AppNotifications => Set<AppNotification>();
 
@@ -83,6 +84,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
             .HasOne(x => x.Evaluator).WithMany().HasForeignKey(x => x.EvaluatorId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<CourseOffering>()
             .HasOne(x => x.Lecturer).WithMany(x => x.CourseOfferings).HasForeignKey(x => x.LecturerId).OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<LoginActivity>().HasIndex(x => x.LoggedInAt);
+        modelBuilder.Entity<LoginActivity>().HasIndex(x => x.UserId);
 
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {

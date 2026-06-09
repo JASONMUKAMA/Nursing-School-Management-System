@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useRef, useState } from 'react';
+import { FormEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ApiClientError } from '../../api/client';
 import { authApi, usersApi } from '../../api/endpoints';
@@ -8,6 +8,7 @@ import { Card } from '../../components/ui/Card';
 import { EditRowButton } from '../../components/ui/EditRowButton';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { NationalIdDocCell } from '../../components/ui/NationalIdDocCell';
 import { PhotoUploadField } from '../../components/ui/PhotoUploadField';
 import { ProfileAvatar } from '../../components/ui/ProfileAvatar';
 import { ProfileViewModal } from '../../components/ui/ProfileViewModal';
@@ -15,10 +16,12 @@ import { Select } from '../../components/ui/Select';
 import { ServerDataTable } from '../../components/ui/ServerDataTable';
 import { ViewRowButton } from '../../components/ui/ViewRowButton';
 import type { Role, TwoFactorSetupResponse, User } from '../../types';
-import { ROLES } from '../../utils/roles';
 import { getUserPhotoUrl, mergeUserMedia, mergeUserPhotoCache } from '../../utils/userMedia';
-
-const STAFF_ROLES: Role[] = ['Lecturer', 'Registrar', 'ClinicalCoordinator', 'FinanceOfficer', 'Admin'];
+import {
+  getUserManagementConfig,
+  roleLabel,
+  userMatchesMode,
+} from './userManagementConfig';
 
 type UserForm = {
   userName: string;
@@ -42,8 +45,8 @@ const emptyUserForm = (): UserForm => ({
   isActive: true,
 });
 
-function toUserForm(user: User): UserForm {
-  const primaryRole = user.roles.find((r) => STAFF_ROLES.includes(r)) ?? user.roles[0] ?? 'Lecturer';
+function toUserForm(user: User, assignableRoles: Role[]): UserForm {
+  const primaryRole = user.roles.find((r) => assignableRoles.includes(r)) ?? user.roles[0] ?? assignableRoles[0];
   return {
     userName: user.userName,
     email: user.email,
@@ -58,7 +61,7 @@ function toUserForm(user: User): UserForm {
 
 export function AdminUsersPage() {
   const { pathname } = useLocation();
-  const isTeachersView = pathname.includes('/teachers');
+  const config = useMemo(() => getUserManagementConfig(pathname), [pathname]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -107,22 +110,24 @@ export function AdminUsersPage() {
     async (page: number, pageSize: number, search: string) => {
       const result = await usersApi.getAll(page, pageSize, search || undefined);
       rememberPhotos(...result.items);
-      return {
-        ...result,
-        items: result.items.map((row) => {
+      const items = result.items
+        .filter((row) => userMatchesMode(row, config))
+        .map((row) => {
           let enriched = uploadedRow?.id === row.id ? mergeUserMedia(row, uploadedRow) : row;
           const photo = getUserPhotoUrl(enriched, photoByIdRef.current);
           if (photo && !enriched.profileImageUrl) {
             enriched = { ...enriched, profileImageUrl: photo };
           }
           return enriched;
-        }),
-      };
+        });
+      return { ...result, items, totalCount: items.length };
     },
-    [uploadedRow],
+    [uploadedRow, config],
   );
 
   const instantUpload = async (field: 'photo' | 'idFront' | 'idBack', file: File | null) => {
+    if (!config.allowUploads) return;
+
     if (!file) {
       if (field === 'photo') setProfilePhoto(null);
       if (field === 'idFront') setNationalIdFront(null);
@@ -167,7 +172,7 @@ export function AdminUsersPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setUserForm(emptyUserForm());
+    setUserForm({ ...emptyUserForm(), role: config.defaultRole });
     setProfilePhoto(null);
     setNationalIdFront(null);
     setNationalIdBack(null);
@@ -177,7 +182,7 @@ export function AdminUsersPage() {
   const openEdit = (user: User) => {
     setViewOpen(false);
     setEditing(user);
-    setUserForm(toUserForm(user));
+    setUserForm(toUserForm(user, config.assignableRoles));
     setProfilePhoto(null);
     setNationalIdFront(null);
     setNationalIdBack(null);
@@ -215,6 +220,7 @@ export function AdminUsersPage() {
   };
 
   const uploadDocuments = async (userId: string): Promise<User | null> => {
+    if (!config.allowUploads) return null;
     let latest: User | null = null;
     if (profilePhoto) latest = await usersApi.uploadProfilePhoto(userId, profilePhoto);
     if (nationalIdFront) latest = await usersApi.uploadNationalIdFront(userId, nationalIdFront);
@@ -257,7 +263,7 @@ export function AdminUsersPage() {
         setProfilePhoto(null);
         setNationalIdFront(null);
         setNationalIdBack(null);
-        setSuccess(`${ROLES[userForm.role]} account created.`);
+        setSuccess(`${roleLabel(userForm.role)} account created.`);
         closeUserModal();
       }
     } catch (err) {
@@ -304,23 +310,30 @@ export function AdminUsersPage() {
   };
 
   const columns = [
-    {
-      key: 'photo',
-      header: '',
-      render: (row: User) => {
-        const photo = getUserPhotoUrl(row, photoById);
-        return (
-          <span className="table-photo-cell">
-            <ProfileAvatar
-              url={photo}
-              cacheBust={photo ? refreshKey : undefined}
-              eager
-              key={`${row.id}-${photo ?? 'none'}-${refreshKey}`}
-            />
-          </span>
-        );
-      },
-    },
+    ...(config.showPhotoColumn
+      ? [
+          {
+            key: 'photo',
+            header: '',
+            render: (row: User) => {
+              const photo = getUserPhotoUrl(row, photoById);
+              const name = [row.firstName, row.lastName].filter(Boolean).join(' ') || row.userName;
+              return (
+                <span className="table-photo-cell">
+                  <ProfileAvatar
+                    url={photo}
+                    cacheBust={photo ? refreshKey : undefined}
+                    eager
+                    zoomable
+                    zoomLabel={`${name} — profile photo`}
+                    key={`${row.id}-${photo ?? 'none'}-${refreshKey}`}
+                  />
+                </span>
+              );
+            },
+          },
+        ]
+      : []),
     { key: 'userName', header: 'Username', render: (row: User) => row.userName },
     {
       key: 'name',
@@ -332,18 +345,27 @@ export function AdminUsersPage() {
       key: 'roles',
       header: 'Roles',
       render: (row: User) =>
-        row.roles.map((r) => ROLES[r] ?? r).join(', ') || '—',
+        row.roles.map((r) => roleLabel(r)).join(', ') || '—',
     },
-    {
-      key: 'nationalId',
-      header: 'National ID',
-      render: (row: User) => (
-        <span className="id-doc-status">
-          <span className={`badge ${row.nationalIdFrontUrl ? 'badge-active' : 'badge-pending'}`}>Front</span>
-          <span className={`badge ${row.nationalIdBackUrl ? 'badge-active' : 'badge-pending'}`}>Back</span>
-        </span>
-      ),
-    },
+    ...(config.showNationalIdColumn
+      ? [
+          {
+            key: 'nationalId',
+            header: 'National ID',
+            render: (row: User) => {
+              const name = [row.firstName, row.lastName].filter(Boolean).join(' ') || row.userName;
+              return (
+                <NationalIdDocCell
+                  frontUrl={row.nationalIdFrontUrl}
+                  backUrl={row.nationalIdBackUrl}
+                  cacheBust={refreshKey}
+                  personName={name}
+                />
+              );
+            },
+          },
+        ]
+      : []),
     {
       key: 'isActive',
       header: 'Status',
@@ -378,22 +400,28 @@ export function AdminUsersPage() {
   return (
     <div className="admin-users-page">
       <div className="page-header">
-        <h2>{isTeachersView ? 'Teachers' : 'Identity & Users'}</h2>
-        <p className="text-muted">
-          {isTeachersView
-            ? 'Manage teacher accounts, photos, and national ID documents.'
-            : 'Manage staff accounts, photos, and national ID documents.'}
-        </p>
+        <h2>{config.title}</h2>
+        <p className="text-muted">{config.subtitle}</p>
+        {config.mode === 'identity' && (
+          <p className="text-muted identity-doc-links">
+            Photos &amp; documents:{' '}
+            <Link to="/app/students">Students</Link>
+            {' · '}
+            <Link to="/app/teachers">Teachers</Link>
+            {' · '}
+            <Link to="/app/admin/administrators">Administrators</Link>
+          </p>
+        )}
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError('')} />}
       {success && <Alert type="success" message={success} onClose={() => setSuccess('')} />}
 
       <Card
-        title={isTeachersView ? 'Teacher Registry' : 'User Directory'}
+        title={config.cardTitle}
         actions={
           <div className="card-actions-row">
-            <Button size="sm" onClick={openCreate}>Add Staff / Teacher</Button>
+            <Button size="sm" onClick={openCreate}>{config.addButtonLabel}</Button>
             <Button size="sm" variant="secondary" onClick={open2FaSetup}>
               Enable 2FA for My Account
             </Button>
@@ -424,7 +452,7 @@ export function AdminUsersPage() {
       <Modal
         isOpen={userModalOpen}
         onClose={closeUserModal}
-        title={editing ? `Edit User — ${editing.userName}` : 'Add Staff / Teacher'}
+        title={editing ? `Edit ${config.modalTitle} — ${editing.userName}` : config.addButtonLabel}
         size="lg"
         footer={
           <div className="modal-footer">
@@ -436,37 +464,39 @@ export function AdminUsersPage() {
         }
       >
         <form className="form-grid" onSubmit={handleSaveUser}>
-          <div className="full-width photo-upload-row photo-upload-row-three">
-            <PhotoUploadField
-              label="Profile photo"
-              hint={editing ? 'Uploads immediately when you choose a file or capture.' : 'Uploads when you create the account.'}
-              value={profilePhoto}
-              onChange={(file) => void instantUpload('photo', file)}
-              existingUrl={editing?.profileImageUrl}
-              cacheBust={editing?.profileImageUrl ?? refreshKey}
-              uploading={uploadingField === 'photo'}
-            />
-            <PhotoUploadField
-              label="National ID — front"
-              hint="Front side (JPG, PNG, or PDF)."
-              value={nationalIdFront}
-              onChange={(file) => void instantUpload('idFront', file)}
-              acceptDocuments
-              existingUrl={editing?.nationalIdFrontUrl}
-              cacheBust={editing?.nationalIdFrontUrl ?? refreshKey}
-              uploading={uploadingField === 'idFront'}
-            />
-            <PhotoUploadField
-              label="National ID — back"
-              hint="Back side (JPG, PNG, or PDF)."
-              value={nationalIdBack}
-              onChange={(file) => void instantUpload('idBack', file)}
-              acceptDocuments
-              existingUrl={editing?.nationalIdBackUrl}
-              cacheBust={editing?.nationalIdBackUrl ?? refreshKey}
-              uploading={uploadingField === 'idBack'}
-            />
-          </div>
+          {config.allowUploads && (
+            <div className="full-width photo-upload-row photo-upload-row-three">
+              <PhotoUploadField
+                label="Profile photo"
+                hint={editing ? 'Uploads immediately when you choose a file or capture.' : 'Uploads when you create the account.'}
+                value={profilePhoto}
+                onChange={(file) => void instantUpload('photo', file)}
+                existingUrl={editing?.profileImageUrl}
+                cacheBust={editing?.profileImageUrl ?? refreshKey}
+                uploading={uploadingField === 'photo'}
+              />
+              <PhotoUploadField
+                label="National ID — front"
+                hint="Front side (JPG, PNG, or PDF)."
+                value={nationalIdFront}
+                onChange={(file) => void instantUpload('idFront', file)}
+                acceptDocuments
+                existingUrl={editing?.nationalIdFrontUrl}
+                cacheBust={editing?.nationalIdFrontUrl ?? refreshKey}
+                uploading={uploadingField === 'idFront'}
+              />
+              <PhotoUploadField
+                label="National ID — back"
+                hint="Back side (JPG, PNG, or PDF)."
+                value={nationalIdBack}
+                onChange={(file) => void instantUpload('idBack', file)}
+                acceptDocuments
+                existingUrl={editing?.nationalIdBackUrl}
+                cacheBust={editing?.nationalIdBackUrl ?? refreshKey}
+                uploading={uploadingField === 'idBack'}
+              />
+            </div>
+          )}
           <Input label="Username" value={userForm.userName} onChange={(e) => setUserForm({ ...userForm, userName: e.target.value })} required />
           <Input label="Email" type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} required />
           {!editing ? (
@@ -480,7 +510,7 @@ export function AdminUsersPage() {
             label="Role"
             value={userForm.role}
             onChange={(e) => setUserForm({ ...userForm, role: e.target.value as Role })}
-            options={STAFF_ROLES.map((r) => ({ value: r, label: ROLES[r] }))}
+            options={config.assignableRoles.map((r) => ({ value: r, label: roleLabel(r) }))}
             required
           />
           {editing && (
@@ -537,16 +567,17 @@ export function AdminUsersPage() {
       <ProfileViewModal
         isOpen={viewOpen}
         onClose={closeView}
-        title={viewing ? [viewing.firstName, viewing.lastName].filter(Boolean).join(' ') || viewing.userName : 'Staff profile'}
+        title={viewing ? [viewing.firstName, viewing.lastName].filter(Boolean).join(' ') || viewing.userName : config.modalTitle}
         subtitle={viewing?.userName}
         loading={viewLoading}
+        showMedia={config.showMediaInView}
         profilePhotoUrl={viewing?.profileImageUrl}
         nationalIdFrontUrl={viewing?.nationalIdFrontUrl}
         nationalIdBackUrl={viewing?.nationalIdBackUrl}
         onEdit={viewing ? () => openEdit(viewing) : undefined}
         fields={viewing ? [
           { label: 'Email', value: viewing.email },
-          { label: 'Roles', value: viewing.roles.map((r) => ROLES[r] ?? r).join(', ') || '—' },
+          { label: 'Roles', value: viewing.roles.map((r) => roleLabel(r)).join(', ') || '—' },
           { label: 'Status', value: viewing.isActive ? 'Active' : 'Inactive' },
           { label: 'Two-factor auth', value: viewing.twoFactorEnabled ? 'Enabled' : 'Off' },
           { label: 'Linked student', value: viewing.studentId ?? '—' },

@@ -4,6 +4,7 @@ import { AppLayout } from './components/layout/AppLayout';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 
+import { ActivityLogsPage } from './features/admin/ActivityLogsPage';
 import { AdminUsersPage } from './features/admin/AdminUsersPage';
 
 import { LoginPage } from './features/auth/LoginPage';
@@ -59,6 +60,10 @@ export default function App() {
           <Route element={<ProtectedRoute roles={['Admin']} />}>
 
             <Route path="admin/users" element={<AdminUsersPage />} />
+
+            <Route path="admin/administrators" element={<AdminUsersPage />} />
+
+            <Route path="admin/activity-logs" element={<ActivityLogsPage />} />
 
           </Route>
 

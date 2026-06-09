@@ -5,8 +5,8 @@ namespace NursingSchool.Application.Interfaces;
 
 public interface IAuthService
 {
-    Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct = default);
-    Task<LoginResponse> LoginWith2FaAsync(TwoFactorLoginRequest request, CancellationToken ct = default);
+    Task<LoginResponse> LoginAsync(LoginRequest request, LoginClientInfo? client = null, CancellationToken ct = default);
+    Task<LoginResponse> LoginWith2FaAsync(TwoFactorLoginRequest request, LoginClientInfo? client = null, CancellationToken ct = default);
     Task<LoginResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken ct = default);
     Task<UserResponse> CreateUserAsync(CreateUserRequest request, Guid createdBy, CancellationToken ct = default);
     Task<UserResponse?> GetUserByIdAsync(Guid id, CancellationToken ct = default);

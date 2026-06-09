@@ -533,6 +533,48 @@ namespace NursingSchool.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("NursingSchool.Domain.Entities.LoginActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FullName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LoggedInAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Roles")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoggedInAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("LoginActivities");
+                });
+
             modelBuilder.Entity("NursingSchool.Domain.Entities.ClassSession", b =>
                 {
                     b.Property<Guid>("Id")

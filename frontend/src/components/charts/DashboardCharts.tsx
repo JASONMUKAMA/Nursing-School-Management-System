@@ -3,8 +3,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -13,18 +11,12 @@ import {
   YAxis,
 } from 'recharts';
 import type { AnalyticsCharts, MlInsights } from '../../types';
+import { CollectionsTrendChart } from './CollectionsTrendChart';
 
 const COLORS = ['#0d9488', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
 
 interface DashboardChartsProps {
   charts: AnalyticsCharts;
-}
-
-function formatUgxAxis(value: number) {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
-  return String(value);
 }
 
 export function DashboardCharts({ charts }: DashboardChartsProps) {
@@ -33,10 +25,6 @@ export function DashboardCharts({ charts }: DashboardChartsProps) {
     value: Number(d.value),
   }));
   const feeStatus = charts.feeStatusBreakdown.map((d) => ({ name: d.label, value: Number(d.value) }));
-  const monthly = charts.monthlyCollections.map((d) => ({
-    month: d.month.slice(5),
-    amount: Number(d.amount),
-  }));
   const methods = charts.paymentMethods.map((d) => ({ name: d.label, value: Number(d.value) }));
 
   const tooltipStyle = {
@@ -91,20 +79,8 @@ export function DashboardCharts({ charts }: DashboardChartsProps) {
         </div>
       </div>
 
-      <div className="chart-card chart-card-wide">
-        <p className="chart-label">Collections</p>
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={monthly} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={formatUgxAxis} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <Tooltip
-              contentStyle={tooltipStyle}
-              formatter={(v: number) => [`UGX ${v.toLocaleString()}`, '']}
-            />
-            <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="chart-card chart-card-wide chart-card-collections">
+        <CollectionsTrendChart points={charts.monthlyCollections} />
       </div>
 
       <div className="chart-card">

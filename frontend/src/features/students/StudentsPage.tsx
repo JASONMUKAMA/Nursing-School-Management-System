@@ -7,8 +7,10 @@ import { Card } from '../../components/ui/Card';
 import { EditRowButton } from '../../components/ui/EditRowButton';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { NationalIdDocCell } from '../../components/ui/NationalIdDocCell';
 import { PhotoUploadField } from '../../components/ui/PhotoUploadField';
 import { ProfileViewModal } from '../../components/ui/ProfileViewModal';
+import { ZoomableImage } from '../../components/ui/ZoomableImage';
 import { StudentProfileUploads } from '../../components/ui/StudentProfileUploads';
 import { Select } from '../../components/ui/Select';
 import { ServerDataTable } from '../../components/ui/ServerDataTable';
@@ -410,16 +412,16 @@ export function StudentsPage() {
         void rowPatchTick;
         const row = applyRowPatch(s);
         const src = resolveMediaUrl(row.profilePhotoUrl, row.profilePhotoUrl ?? refreshKey);
+        const name = `${row.firstName} ${row.lastName}`.trim();
         return (
           <span className="table-photo-cell">
             {src ? (
-              <img
+              <ZoomableImage
                 key={`${s.id}-${row.profilePhotoUrl ?? 'none'}-${refreshKey}`}
                 src={src}
                 alt=""
                 className="table-avatar"
-                style={{ display: 'block' }}
-                loading="eager"
+                zoomLabel={`${name} — profile photo`}
               />
             ) : (
               <span className="table-avatar table-avatar-empty" aria-hidden>👤</span>
@@ -439,11 +441,14 @@ export function StudentsPage() {
       render: (s: Student) => {
         void rowPatchTick;
         const row = applyRowPatch(s);
+        const name = `${row.firstName} ${row.lastName}`.trim();
         return (
-          <span className="id-doc-status">
-            <span className={`badge ${row.nationalIdFrontUrl ? 'badge-active' : 'badge-pending'}`}>Front</span>
-            <span className={`badge ${row.nationalIdBackUrl ? 'badge-active' : 'badge-pending'}`}>Back</span>
-          </span>
+          <NationalIdDocCell
+            frontUrl={row.nationalIdFrontUrl}
+            backUrl={row.nationalIdBackUrl}
+            cacheBust={refreshKey}
+            personName={name}
+          />
         );
       },
     },

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from './Button';
 import { Modal } from './Modal';
+import { ZoomableImage } from './ZoomableImage';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 export interface ProfileField {
@@ -20,6 +21,7 @@ interface ProfileViewModalProps {
   fields: ProfileField[];
   onEdit?: () => void;
   uploads?: ReactNode;
+  showMedia?: boolean;
 }
 
 function isPdf(url: string) {
@@ -48,12 +50,19 @@ function IdPreview({ label, url }: { label: string; url?: string | null }) {
   }
 
   const mediaUrl = resolveMediaUrl(url);
+  if (!mediaUrl) {
+    return (
+      <div className="profile-id-card profile-id-missing">
+        <span className="profile-id-label">{label}</span>
+        <span className="profile-id-empty">Not uploaded</span>
+      </div>
+    );
+  }
+
   return (
     <div className="profile-id-card">
       <span className="profile-id-label">{label}</span>
-      <a href={mediaUrl} target="_blank" rel="noreferrer" className="profile-id-image-link">
-        <img src={mediaUrl} alt={label} className="profile-id-image" style={{ display: 'block' }} />
-      </a>
+      <ZoomableImage src={mediaUrl} alt={label} className="profile-id-image" zoomLabel={label} />
     </div>
   );
 }
@@ -70,6 +79,7 @@ export function ProfileViewModal({
   fields,
   onEdit,
   uploads,
+  showMedia = true,
 }: ProfileViewModalProps) {
   return (
     <Modal
@@ -94,24 +104,26 @@ export function ProfileViewModal({
         <div className="profile-view">
           {subtitle && <p className="profile-view-subtitle">{subtitle}</p>}
 
-          <div className="profile-view-hero">
-            {profilePhotoUrl ? (
-              <img
-                src={resolveMediaUrl(profilePhotoUrl, profilePhotoUrl)}
-                alt=""
-                className="profile-view-photo"
-                style={{ display: 'block' }}
-              />
-            ) : (
-              <span className="profile-view-photo profile-view-photo-empty" aria-hidden>
-                👤
-              </span>
-            )}
-            <div className="profile-view-id-grid">
-              <IdPreview label="National ID — front" url={nationalIdFrontUrl} />
-              <IdPreview label="National ID — back" url={nationalIdBackUrl} />
+          {showMedia && (
+            <div className="profile-view-hero">
+              {profilePhotoUrl ? (
+                <ZoomableImage
+                  src={resolveMediaUrl(profilePhotoUrl, profilePhotoUrl)!}
+                  alt=""
+                  className="profile-view-photo"
+                  zoomLabel="Profile photo"
+                />
+              ) : (
+                <span className="profile-view-photo profile-view-photo-empty" aria-hidden>
+                  👤
+                </span>
+              )}
+              <div className="profile-view-id-grid">
+                <IdPreview label="National ID — front" url={nationalIdFrontUrl} />
+                <IdPreview label="National ID — back" url={nationalIdBackUrl} />
+              </div>
             </div>
-          </div>
+          )}
 
           {uploads}
 

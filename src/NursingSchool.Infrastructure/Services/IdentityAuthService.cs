@@ -15,9 +15,10 @@ public class IdentityAuthService(
     SignInManager<ApplicationUser> signInManager,
     IApplicationDbContext db,
     JwtTokenService jwt,
-    IFileStorageService fileStorage) : IAuthService
+    IFileStorageService fileStorage,
+    ILoginActivityService loginActivityService) : IAuthService
 {
-    public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct = default)
+    public async Task<LoginResponse> LoginAsync(LoginRequest request, LoginClientInfo? client = null, CancellationToken ct = default)
     {
         var user = await userManager.FindByNameAsync(request.UserNameOrEmail)
             ?? await userManager.FindByEmailAsync(request.UserNameOrEmail)
@@ -34,10 +35,10 @@ public class IdentityAuthService(
         if (!result.Succeeded)
             throw new UnauthorizedAccessException("Invalid credentials.");
 
-        return await BuildLoginResponseAsync(user, ct);
+        return await BuildLoginResponseAsync(user, client, ct);
     }
 
-    public async Task<LoginResponse> LoginWith2FaAsync(TwoFactorLoginRequest request, CancellationToken ct = default)
+    public async Task<LoginResponse> LoginWith2FaAsync(TwoFactorLoginRequest request, LoginClientInfo? client = null, CancellationToken ct = default)
     {
         var user = await userManager.FindByIdAsync(request.UserId.ToString())
             ?? throw new UnauthorizedAccessException("Invalid user.");
@@ -46,7 +47,7 @@ public class IdentityAuthService(
         if (!valid)
             throw new UnauthorizedAccessException("Invalid authenticator code.");
 
-        return await BuildLoginResponseAsync(user, ct);
+        return await BuildLoginResponseAsync(user, client, ct);
     }
 
     public Task<LoginResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken ct = default) =>
@@ -217,11 +218,12 @@ public class IdentityAuthService(
         return MapUser(user, roles.ToList(), studentId);
     }
 
-    private async Task<LoginResponse> BuildLoginResponseAsync(ApplicationUser user, CancellationToken ct)
+    private async Task<LoginResponse> BuildLoginResponseAsync(ApplicationUser user, LoginClientInfo? client, CancellationToken ct)
     {
         user.LastLoginAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
         var roles = await userManager.GetRolesAsync(user);
+        await loginActivityService.RecordLoginAsync(user, roles.ToList(), client, ct);
         var studentId = await db.Students.Where(s => s.UserId == user.Id).Select(s => (Guid?)s.Id).FirstOrDefaultAsync(ct);
         var (accessToken, expiresAt) = jwt.GenerateAccessToken(user, roles, studentId);
         return new LoginResponse(accessToken, "", expiresAt, MapUser(user, roles.ToList(), studentId));

@@ -1,4 +1,5 @@
 import type { Student, StudentResult } from '../types';
+import { resolveMediaUrl } from './mediaUrl';
 
 function escapeHtml(value: string) {
   return value
@@ -25,9 +26,19 @@ function componentSummary(result: StudentResult) {
     .join('; ');
 }
 
+function absoluteMediaUrl(url?: string | null): string | undefined {
+  const resolved = resolveMediaUrl(url, url ?? undefined);
+  if (!resolved) return undefined;
+  if (resolved.startsWith('http://') || resolved.startsWith('https://') || resolved.startsWith('data:')) {
+    return resolved;
+  }
+  return `${window.location.origin}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
+}
+
 export function printStudentTranscript(student: Student, results: StudentResult[], title = 'Academic Transcript') {
   const printedAt = new Date().toLocaleString('en-UG', { dateStyle: 'full', timeStyle: 'short' });
   const avg = averageScore(results);
+  const photoUrl = absoluteMediaUrl(student.profilePhotoUrl);
   const courseRows = results
     .map(
       (r) => `<tr>
@@ -47,7 +58,9 @@ export function printStudentTranscript(student: Student, results: StudentResult[
   <title>${escapeHtml(title)} — ${escapeHtml(student.studentNo)}</title>
   <style>
     body { font-family: Georgia, 'Times New Roman', serif; color: #111; margin: 24px; }
-    .letterhead { text-align: center; border-bottom: 2px solid #1a5c52; padding-bottom: 12px; margin-bottom: 20px; }
+    .letterhead { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #1a5c52; padding-bottom: 12px; margin-bottom: 20px; }
+    .letterhead-photo { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc; flex-shrink: 0; }
+    .letterhead-text { flex: 1; text-align: center; }
     .letterhead h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: 0.04em; text-transform: uppercase; }
     .letterhead p { margin: 0; font-size: 13px; color: #444; }
     .doc-title { text-align: center; font-size: 16px; font-weight: bold; margin: 0 0 16px; text-transform: uppercase; }
@@ -66,8 +79,11 @@ export function printStudentTranscript(student: Student, results: StudentResult[
 </head>
 <body>
   <div class="letterhead">
-    <h1>Nursing School Management System</h1>
-    <p>Official Academic Record</p>
+    ${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="" class="letterhead-photo" />` : ''}
+    <div class="letterhead-text">
+      <h1>Nursing School Management System</h1>
+      <p>Official Academic Record</p>
+    </div>
   </div>
   <p class="doc-title">${escapeHtml(title)}</p>
   <dl class="meta">

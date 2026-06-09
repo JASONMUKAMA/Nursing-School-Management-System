@@ -21,6 +21,7 @@ import type {
   FinanceDashboard,
   GatewayTransaction,
   Invoice,
+  LoginActivity,
   LoginRequest,
   LoginResponse,
   Mark,
@@ -60,6 +61,11 @@ export const authApi = {
   get2FaSetup: () => api.get<TwoFactorSetupResponse>('/api/auth/2fa/setup'),
   enable2Fa: (data: EnableTwoFactorRequest) =>
     api.post<void>('/api/auth/2fa/enable', data),
+};
+
+export const activityLogsApi = {
+  getAll: (page = 1, pageSize = 20, search?: string) =>
+    api.get<PagedResult<LoginActivity>>(`/api/auth/activity-logs?${pageQuery(page, pageSize, search)}`),
 };
 
 export const usersApi = {

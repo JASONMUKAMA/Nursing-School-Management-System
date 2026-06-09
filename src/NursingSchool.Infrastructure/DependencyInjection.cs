@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
         services.AddScoped<IAuthService, IdentityAuthService>();
+        services.AddScoped<ILoginActivityService, LoginActivityService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IStudentService, StudentService>();
         services.AddScoped<IAdmissionService, AdmissionService>();

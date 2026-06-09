@@ -50,6 +50,18 @@ export interface EnableTwoFactorRequest {
   code: string;
 }
 
+export interface LoginActivity {
+  id: string;
+  userId: string;
+  userName: string;
+  fullName?: string | null;
+  email: string;
+  roles: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  loggedInAt: string;
+}
+
 export interface CreateUserRequest {
   userName: string;
   email: string;

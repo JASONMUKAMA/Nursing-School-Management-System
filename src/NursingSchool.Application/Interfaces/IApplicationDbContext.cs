@@ -32,6 +32,7 @@ public interface IApplicationDbContext
     DbSet<ClinicalPlacement> ClinicalPlacements { get; }
     DbSet<ClinicalEvaluation> ClinicalEvaluations { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<LoginActivity> LoginActivities { get; }
     DbSet<SchoolEvent> SchoolEvents { get; }
     DbSet<AppNotification> AppNotifications { get; }
 

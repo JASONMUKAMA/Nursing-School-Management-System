@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ZoomableImage } from './ZoomableImage';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 export interface PhotoUploadFieldProps {
@@ -203,7 +204,12 @@ export function PhotoUploadField({
       {mode === 'upload' && (
         <div className={`photo-upload-dropzone${uploading ? ' photo-upload-dropzone-busy' : ''}`}>
           {previewUrl && isImagePreview ? (
-            <img src={previewUrl} alt="" className="photo-upload-preview" style={{ display: 'block' }} />
+            <ZoomableImage
+              src={previewUrl}
+              alt=""
+              className="photo-upload-preview"
+              zoomLabel={label}
+            />
           ) : value ? (
             <span className="photo-upload-filename">{value.name}</span>
           ) : existingUrl ? (
