@@ -2904,31 +2904,6 @@ img.table-avatar {
   color: #b45309;
 }
 
-.collection-chart-explainer {
-  margin: 0.5rem 0 0.25rem;
-  padding: 0.625rem 0.75rem;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: #64748b;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid #e8eef4;
-  border-radius: 8px;
-}
-
-.collection-chart-explainer strong {
-  color: #475569;
-}
-
-.collection-chart-explainer-actual {
-  color: #0f766e;
-  font-weight: 600;
-}
-
-.collection-chart-explainer-trend {
-  color: #b45309;
-  font-weight: 600;
-}
-
 .chart-legend {
   display: flex;
   flex-wrap: wrap;

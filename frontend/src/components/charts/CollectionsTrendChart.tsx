@@ -172,14 +172,6 @@ export function CollectionsTrendChart({ points }: CollectionsTrendChartProps) {
         </span>
       </div>
 
-      <p className="collection-chart-explainer">
-        <strong>How to read this chart:</strong> The <span className="collection-chart-explainer-actual">solid teal line</span> shows
-        real fees collected each month. The <span className="collection-chart-explainer-trend">dashed amber trendline</span> is the
-        overall direction across the period — it smooths out month-to-month ups and downs so you can see whether collections are
-        generally rising or falling. Hover a month to compare actual vs trend. The badge shows how the latest month compares to the
-        first month shown.
-      </p>
-
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={data} margin={{ top: 12, right: 16, left: 4, bottom: 4 }}>
           <defs>

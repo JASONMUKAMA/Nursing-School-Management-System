@@ -137,17 +137,14 @@ The **Fee collections** chart on the dashboard was redesigned.
 - **Trend badge** (↑/↓ %) comparing latest month to first
 - Custom tooltip: actual amount, trend value, above/below trend delta
 - Legend: **Actual collections** (teal) vs **Trendline** (dashed amber)
-- **On-chart explainer** so staff know how to read the trendline
 
-### How to read the trendline (shown on dashboard)
+### How to read the trendline
 | Element | Meaning |
 |---------|---------|
 | **Solid teal line** | Real fees collected each month |
 | **Dashed amber trendline** | Overall direction across the period — smooths month-to-month ups and downs so you can see if collections are generally rising or falling (linear regression) |
 | **Hover tooltip** | Compares that month’s actual collection vs the trend value; shows above/below trend |
 | **Badge** | How the latest month compares to the first month on the chart |
-
-> **How to read this chart:** The solid teal line shows real fees collected each month. The dashed amber trendline is the overall direction across the period — it smooths out month-to-month ups and downs so you can see whether collections are generally rising or falling. Hover a month to compare actual vs trend. The badge shows how the latest month compares to the first month shown.
 
 **Files added/changed:**
 - `frontend/src/components/charts/CollectionsTrendChart.tsx` (new)
