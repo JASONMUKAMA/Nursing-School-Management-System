@@ -7,6 +7,7 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
 {
     private const long MaxImageBytes = 5 * 1024 * 1024;
     private const long MaxDocumentBytes = 10 * 1024 * 1024;
+    private const long MaxComplaintAttachmentBytes = 1024 * 1024;
 
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         { ".jpg", ".jpeg", ".png", ".webp" };
@@ -14,11 +15,17 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
     private static readonly HashSet<string> DocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
         { ".jpg", ".jpeg", ".png", ".webp", ".pdf" };
 
+    private static readonly HashSet<string> ComplaintAttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
+        { ".jpg", ".jpeg", ".png", ".webp", ".pdf" };
+
     public async Task<string> SaveImageAsync(IFormFile file, string folder, CancellationToken ct = default) =>
         await SaveAsync(file, folder, ImageExtensions, MaxImageBytes, ct);
 
     public async Task<string> SaveDocumentAsync(IFormFile file, string folder, CancellationToken ct = default) =>
         await SaveAsync(file, folder, DocumentExtensions, MaxDocumentBytes, ct);
+
+    public Task<string> SaveComplaintAttachmentAsync(IFormFile file, CancellationToken ct = default) =>
+        SaveAsync(file, "complaints", ComplaintAttachmentExtensions, MaxComplaintAttachmentBytes, ct);
 
     public void DeleteIfExists(string? relativeUrl)
     {
@@ -41,7 +48,12 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
             throw new InvalidOperationException("File is empty.");
 
         if (file.Length > maxBytes)
-            throw new InvalidOperationException($"File exceeds the maximum size of {maxBytes / (1024 * 1024)} MB.");
+        {
+            var limitLabel = maxBytes < 1024 * 1024
+                ? $"{maxBytes / 1024} KB"
+                : $"{maxBytes / (1024 * 1024)} MB";
+            throw new InvalidOperationException($"File exceeds the maximum size of {limitLabel}.");
+        }
 
         var extension = Path.GetExtension(file.FileName);
         if (string.IsNullOrWhiteSpace(extension))

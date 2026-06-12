@@ -47,6 +47,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<QuizOption> QuizOptions => Set<QuizOption>();
     public DbSet<QuizSubmission> QuizSubmissions => Set<QuizSubmission>();
     public DbSet<QuizAnswer> QuizAnswers => Set<QuizAnswer>();
+    public DbSet<Complaint> Complaints => Set<Complaint>();
+    public DbSet<OnlineExam> OnlineExams => Set<OnlineExam>();
+    public DbSet<OnlineExamQuestion> OnlineExamQuestions => Set<OnlineExamQuestion>();
+    public DbSet<OnlineExamOption> OnlineExamOptions => Set<OnlineExamOption>();
+    public DbSet<OnlineExamSubmission> OnlineExamSubmissions => Set<OnlineExamSubmission>();
+    public DbSet<OnlineExamAnswer> OnlineExamAnswers => Set<OnlineExamAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -102,6 +108,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         modelBuilder.Entity<QuizSubmission>().HasIndex(x => new { x.QuizId, x.StudentId }).IsUnique();
         modelBuilder.Entity<QuizAnswer>()
             .HasOne(x => x.Question).WithMany().HasForeignKey(x => x.QuizQuestionId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Complaint>()
+            .HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Complaint>().HasIndex(x => x.CreatedAt);
+
+        modelBuilder.Entity<OnlineExam>()
+            .HasOne(x => x.CourseOffering).WithMany().HasForeignKey(x => x.CourseOfferingId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<OnlineExam>()
+            .HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<OnlineExamSubmission>().HasIndex(x => new { x.OnlineExamId, x.StudentId }).IsUnique();
+        modelBuilder.Entity<OnlineExamAnswer>()
+            .HasOne(x => x.Question).WithMany().HasForeignKey(x => x.OnlineExamQuestionId).OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<LoginActivity>().HasIndex(x => x.LoggedInAt);
         modelBuilder.Entity<LoginActivity>().HasIndex(x => x.UserId);

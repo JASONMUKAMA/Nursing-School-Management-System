@@ -131,7 +131,7 @@ public class ReportsController(IFinanceService financeService, IResultsService r
 {
     [HttpGet("fee-balances")]
     [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.FinanceOfficer}")]
-    public async Task<ActionResult<PagedResult<FeeBalanceReportRow>>> GetFeeBalances([FromQuery] Guid? programId, [FromQuery] PaginationQuery query, CancellationToken ct) =>
+    public async Task<ActionResult<PagedResult<FeeBalanceReportRow>>> GetFeeBalances([FromQuery] Guid? programId, [FromQuery] FeeBalanceReportQuery query, CancellationToken ct) =>
         Ok(await financeService.GetFeeBalanceReportAsync(programId, query, ct));
 
     [HttpGet("results")]

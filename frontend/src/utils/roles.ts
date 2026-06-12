@@ -100,6 +100,18 @@ export const NAV_GROUPS: NavGroup[] = [
 
       },
 
+      {
+
+        path: '/app/complaints',
+
+        label: 'Complaints',
+
+        icon: '💬',
+
+        roles: ['Admin', 'Registrar', 'Lecturer', 'ClinicalCoordinator', 'FinanceOfficer', 'Student'],
+
+      },
+
     ],
 
   },
@@ -203,6 +215,18 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Live Classroom',
 
         icon: '🎥',
+
+        roles: ['Admin', 'Lecturer', 'Student'],
+
+      },
+
+      {
+
+        path: '/app/online-exams',
+
+        label: 'Online Exams',
+
+        icon: '📝',
 
         roles: ['Admin', 'Lecturer', 'Student'],
 

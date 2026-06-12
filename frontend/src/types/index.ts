@@ -629,6 +629,96 @@ export interface QuizResult {
   answers: QuizAnswerResult[];
 }
 
+export type OnlineExamStatus = 'Draft' | 'Published' | 'Closed';
+export type ObjectiveQuestionType = 'MultipleChoice' | 'TrueFalse';
+
+export interface OnlineExamListItem {
+  id: string;
+  courseOfferingId: string;
+  courseCode: string;
+  courseName: string;
+  title: string;
+  status: OnlineExamStatus;
+  createdByName: string;
+  createdAt: string;
+  publishedAt: string | null;
+  closedAt: string | null;
+  questionCount: number;
+  maxScore: number;
+}
+
+export interface OnlineExamOption {
+  id: string;
+  text: string;
+  isCorrect: boolean | null;
+}
+
+export interface OnlineExamQuestion {
+  id: string;
+  text: string;
+  questionType: ObjectiveQuestionType;
+  points: number;
+  sortOrder: number;
+  options: OnlineExamOption[];
+}
+
+export interface OnlineExam {
+  id: string;
+  courseOfferingId: string;
+  courseCode: string;
+  courseName: string;
+  title: string;
+  instructions: string | null;
+  status: OnlineExamStatus;
+  publishedAt: string | null;
+  closedAt: string | null;
+  questionCount: number;
+  maxScore: number;
+  questions: OnlineExamQuestion[];
+}
+
+export interface ObjectiveQuestionDraft {
+  text: string;
+  questionType: ObjectiveQuestionType;
+  points: number;
+  options: { text: string; isCorrect: boolean }[];
+}
+
+export interface OnlineExamAnswerResult {
+  questionId: string;
+  questionText: string;
+  selectedOptionId: string | null;
+  isCorrect: boolean;
+  pointsAwarded: number;
+  points: number;
+  correctAnswer: string | null;
+}
+
+export interface OnlineExamResult {
+  submissionId: string;
+  onlineExamId: string;
+  examTitle: string;
+  studentId: string;
+  studentName: string;
+  studentNo: string;
+  score: number;
+  maxScore: number;
+  submittedAt: string;
+  answers: OnlineExamAnswerResult[];
+}
+
+export interface Complaint {
+  id: string;
+  userId: string;
+  authorName: string;
+  primaryRole: string | null;
+  message: string;
+  postedAt: string;
+  attachmentUrl?: string | null;
+  attachmentFileName?: string | null;
+  attachmentKind?: 'Image' | 'Pdf' | string | null;
+}
+
 export interface ApiError {
   message: string;
 }

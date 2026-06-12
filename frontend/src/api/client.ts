@@ -108,6 +108,37 @@ function isNetworkFailure(error: unknown): boolean {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export async function apiPostForm<T>(
+  path: string,
+  fields: Record<string, string>,
+  file?: File,
+  fileFieldName = 'file',
+): Promise<T> {
+  const prepared = file ? await prepareUploadFile(file) : undefined;
+  if (prepared && prepared.size > 1024 * 1024) {
+    throw new ApiClientError('File must be 1 MB or smaller.', 400);
+  }
+
+  const body = new FormData();
+  Object.entries(fields).forEach(([key, value]) => body.append(key, value));
+  if (prepared) body.append(fileFieldName, prepared);
+
+  const response = await fetch(path, { method: 'POST', headers: uploadAuthHeaders(), body });
+
+  if (response.status === 401) {
+    setStoredAuth(null);
+    onUnauthorized?.();
+    throw new ApiClientError('Session expired. Please log in again.', 401);
+  }
+
+  if (!response.ok) {
+    const message = await parseError(response);
+    throw new ApiClientError(message, response.status);
+  }
+
+  return (await response.json()) as T;
+}
+
 export async function apiUpload<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
   const prepared = await prepareUploadFile(file);
 

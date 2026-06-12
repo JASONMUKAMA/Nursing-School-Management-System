@@ -61,7 +61,7 @@ public interface IFinanceService
     Task<GatewayTransactionResponse?> GetGatewayTransactionAsync(Guid id, CancellationToken ct = default);
     Task<object> ProcessJpesaCallbackAsync(string body, CancellationToken ct = default);
     Task<PagedResult<PaymentResponse>> GetPaymentsAsync(string? paymentMethod, PaginationQuery query, CancellationToken ct = default);
-    Task<PagedResult<FeeBalanceReportRow>> GetFeeBalanceReportAsync(Guid? programId, PaginationQuery query, CancellationToken ct = default);
+    Task<PagedResult<FeeBalanceReportRow>> GetFeeBalanceReportAsync(Guid? programId, FeeBalanceReportQuery query, CancellationToken ct = default);
     Task<decimal> GetStudentOutstandingBalanceAsync(Guid studentId, CancellationToken ct = default);
     Task<StudentInvoicePreviewResponse> GetStudentInvoicePreviewAsync(Guid studentId, CancellationToken ct = default);
     Task<PublicStudentFeeSummaryResponse?> GetPublicStudentFeesByStudentNoAsync(string studentNo, CancellationToken ct = default);
@@ -103,6 +103,24 @@ public interface IClassroomService
     Task<QuizResultResponse> SubmitQuizAsync(Guid quizId, Guid studentId, SubmitQuizRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<QuizResultResponse>> GetQuizResultsAsync(Guid quizId, CancellationToken ct = default);
     Task<QuizResultResponse?> GetMyQuizResultAsync(Guid quizId, Guid studentId, CancellationToken ct = default);
+}
+
+public interface IComplaintsService
+{
+    Task<PagedResult<ComplaintResponse>> GetMessagesAsync(PaginationQuery query, CancellationToken ct = default);
+    Task<ComplaintResponse> PostAsync(Guid userId, PostComplaintRequest request, CancellationToken ct = default);
+}
+
+public interface IOnlineExamsService
+{
+    Task<PagedResult<OnlineExamListItemResponse>> GetExamsAsync(Guid? courseOfferingId, Guid userId, bool isStudent, PaginationQuery query, CancellationToken ct = default);
+    Task<OnlineExamResponse?> GetExamAsync(Guid id, Guid userId, bool isStudent, bool includeAnswers, CancellationToken ct = default);
+    Task<OnlineExamResponse> CreateExamAsync(CreateOnlineExamRequest request, Guid createdBy, CancellationToken ct = default);
+    Task<OnlineExamResponse> PublishExamAsync(Guid id, Guid userId, CancellationToken ct = default);
+    Task<OnlineExamResponse> CloseExamAsync(Guid id, Guid userId, CancellationToken ct = default);
+    Task<OnlineExamResultResponse> SubmitExamAsync(Guid examId, Guid studentId, SubmitOnlineExamRequest request, CancellationToken ct = default);
+    Task<IReadOnlyList<OnlineExamResultResponse>> GetExamResultsAsync(Guid examId, CancellationToken ct = default);
+    Task<OnlineExamResultResponse?> GetMyExamResultAsync(Guid examId, Guid studentId, CancellationToken ct = default);
 }
 
 public interface IDashboardService

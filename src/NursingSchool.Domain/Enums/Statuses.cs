@@ -59,6 +59,12 @@ public static class QuizQuestionTypes
     public const string ShortAnswer = "ShortAnswer";
 }
 
+public static class OnlineExamQuestionTypes
+{
+    public const string MultipleChoice = "MultipleChoice";
+    public const string TrueFalse = "TrueFalse";
+}
+
 public static class PlacementStatuses
 {
     public const string Scheduled = "Scheduled";

@@ -37,6 +37,12 @@ import { ReportsPage } from './features/reports/ReportsPage';
 
 import { IdsPage } from './features/ids/IdsPage';
 
+import { ComplaintsPage } from './features/complaints/ComplaintsPage';
+
+import { OnlineExamsPage } from './features/online-exams/OnlineExamsPage';
+
+import { TakeOnlineExamPage } from './features/online-exams/TakeOnlineExamPage';
+
 
 
 export default function App() {
@@ -58,6 +64,8 @@ export default function App() {
           <Route index element={<Navigate to="/app/dashboard" replace />} />
 
           <Route path="dashboard" element={<DashboardPage />} />
+
+          <Route path="complaints" element={<ComplaintsPage />} />
 
 
 
@@ -113,6 +121,10 @@ export default function App() {
             <Route path="classroom" element={<ClassroomPage />} />
 
             <Route path="classroom/:sessionId" element={<LiveClassroomPage />} />
+
+            <Route path="online-exams" element={<OnlineExamsPage />} />
+
+            <Route path="online-exams/:examId" element={<TakeOnlineExamPage />} />
 
           </Route>
 

@@ -33,7 +33,7 @@ public class DashboardService(
         var invoices = await db.Invoices.Include(i => i.Payments).ToListAsync(ct);
         var events = await db.SchoolEvents.Where(e => e.StartDate >= DateTime.UtcNow).OrderBy(e => e.StartDate).Take(6)
             .Select(e => new SchoolEventResponse(e.Id, e.Title, e.Description, e.EventType, e.StartDate, e.EndDate, e.Location, e.TargetAudience, e.IsPublished)).ToListAsync(ct);
-        var topBalances = (await financeService.GetFeeBalanceReportAsync(null, new Application.Common.PaginationQuery { Page = 1, PageSize = 10 }, ct)).Items.ToList();
+        var topBalances = (await financeService.GetFeeBalanceReportAsync(null, new Application.Common.FeeBalanceReportQuery { Page = 1, PageSize = 10 }, ct)).Items.ToList();
         var charts = await analyticsService.GetChartsAsync(ct);
         var trends = await DashboardTrendHelper.BuildAdminTrendsAsync(db, ct);
         return new AdminDashboardDto(
@@ -54,7 +54,7 @@ public class DashboardService(
         var totalInvoiced = invoices.Sum(i => i.TotalAmount);
         var collected = invoices.SelectMany(i => i.Payments).Sum(p => p.Amount);
         var overdue = invoices.Count(i => InvoiceCalculator.GetStatus(i) == InvoiceStatuses.Overdue);
-        var topDebtors = (await financeService.GetFeeBalanceReportAsync(null, new Application.Common.PaginationQuery { Page = 1, PageSize = 10 }, ct)).Items.ToList();
+        var topDebtors = (await financeService.GetFeeBalanceReportAsync(null, new Application.Common.FeeBalanceReportQuery { Page = 1, PageSize = 10 }, ct)).Items.ToList();
         var recent = await db.Payments.Include(p => p.Invoice).ThenInclude(i => i.Student)
             .OrderByDescending(p => p.PaymentDate).Take(10)
             .Select(p => new PaymentSummaryRow(p.ReceiptNo, $"{p.Invoice.Student.FirstName} {p.Invoice.Student.LastName}", p.Amount, p.PaymentMethod, p.PaymentDate))

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { academicApi, reportsApi, studentsApi } from '../../api/endpoints';
+import { academicApi, reportsApi, studentsApi, type FeeBalanceSortField } from '../../api/endpoints';
 import { StudentResultsTranscript } from '../../components/results/StudentResultsTranscript';
 import { Alert } from '../../components/ui/Alert';
 import { Card } from '../../components/ui/Card';
@@ -27,6 +27,8 @@ export function ReportsPage() {
   const [studentProfile, setStudentProfile] = useState<Student | null>(null);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [programId, setProgramId] = useState('');
+  const [feeStatusFilter, setFeeStatusFilter] = useState('');
+  const [sortKey, setSortKey] = useState('balance:desc');
   const [studentId, setStudentId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,9 +51,19 @@ export function ReportsPage() {
   }, []);
 
   const fetchFeeBalances = useCallback(
-    (page: number, pageSize: number, search: string) =>
-      reportsApi.getFeeBalances(programId || undefined, page, pageSize, search || undefined),
-    [programId],
+    (page: number, pageSize: number, search: string) => {
+      const [sortBy, sortDir] = sortKey.split(':') as [FeeBalanceSortField, 'asc' | 'desc'];
+      return reportsApi.getFeeBalances(
+        programId || undefined,
+        page,
+        pageSize,
+        search || undefined,
+        feeStatusFilter || undefined,
+        sortBy,
+        sortDir,
+      );
+    },
+    [programId, feeStatusFilter, sortKey],
   );
 
   const loadResultsReport = async (id: string) => {
@@ -90,11 +102,41 @@ export function ReportsPage() {
       {tab === 'fee-balances' && canViewFees && (
         <Card
           actions={
-            <Select
-              value={programId}
-              onChange={(e) => setProgramId(e.target.value)}
-              options={[{ value: '', label: 'All Programs' }, ...programs.map((p) => ({ value: p.id, label: p.name }))]}
-            />
+            <div className="reports-fee-filters toolbar">
+              <Select
+                label="Program"
+                value={programId}
+                onChange={(e) => setProgramId(e.target.value)}
+                options={[{ value: '', label: 'All Programs' }, ...programs.map((p) => ({ value: p.id, label: p.name }))]}
+              />
+              <Select
+                label="Status"
+                value={feeStatusFilter}
+                onChange={(e) => setFeeStatusFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All (Paid / Due / Overdue)' },
+                  { value: 'Paid', label: 'Paid' },
+                  { value: 'Due', label: 'Due' },
+                  { value: 'Overdue', label: 'Overdue' },
+                ]}
+              />
+              <Select
+                label="Sort by"
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value)}
+                options={[
+                  { value: 'balance:desc', label: 'Balance (highest first)' },
+                  { value: 'balance:asc', label: 'Balance (lowest first)' },
+                  { value: 'feeStatus:asc', label: 'Status (Paid → Overdue)' },
+                  { value: 'studentName:asc', label: 'Name (A–Z)' },
+                  { value: 'studentName:desc', label: 'Name (Z–A)' },
+                  { value: 'nextDueDate:asc', label: 'Due date (soonest)' },
+                  { value: 'nextDueDate:desc', label: 'Due date (latest)' },
+                  { value: 'lastPaymentDate:desc', label: 'Last payment (recent)' },
+                  { value: 'totalPaid:desc', label: 'Amount paid (highest)' },
+                ]}
+              />
+            </div>
           }
         >
           <ServerDataTable<FeeBalanceRow>
@@ -122,7 +164,7 @@ export function ReportsPage() {
             keyField="studentId"
             fetchData={fetchFeeBalances}
             searchPlaceholder="Search students..."
-            refreshKey={programId}
+            refreshKey={`${programId}-${feeStatusFilter}-${sortKey}`}
           />
         </Card>
       )}

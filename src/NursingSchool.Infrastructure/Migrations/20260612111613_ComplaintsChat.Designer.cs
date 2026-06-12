@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NursingSchool.Infrastructure.Data;
@@ -11,9 +12,11 @@ using NursingSchool.Infrastructure.Data;
 namespace NursingSchool.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612111613_ComplaintsChat")]
+    partial class ComplaintsChat
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -784,15 +787,6 @@ namespace NursingSchool.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AttachmentFileName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("AttachmentKind")
-                        .HasColumnType("text");
-
-                    b.Property<string>("AttachmentUrl")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1384,236 +1378,6 @@ namespace NursingSchool.Infrastructure.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("Marks");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExam", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("CourseOfferingId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Instructions")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("PublishedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseOfferingId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.ToTable("OnlineExams");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamAnswer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsCorrect")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("OnlineExamQuestionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("OnlineExamSubmissionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("PointsAwarded")
-                        .HasColumnType("numeric");
-
-                    b.Property<Guid?>("SelectedOptionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OnlineExamQuestionId");
-
-                    b.HasIndex("OnlineExamSubmissionId");
-
-                    b.ToTable("OnlineExamAnswers");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamOption", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsCorrect")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("OnlineExamQuestionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OnlineExamQuestionId");
-
-                    b.ToTable("OnlineExamOptions");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamQuestion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("OnlineExamId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Points")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("QuestionType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OnlineExamId");
-
-                    b.ToTable("OnlineExamQuestions");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamSubmission", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("MaxScore")
-                        .HasColumnType("numeric");
-
-                    b.Property<Guid>("OnlineExamId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Score")
-                        .HasColumnType("numeric");
-
-                    b.Property<Guid>("StudentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("OnlineExamId", "StudentId")
-                        .IsUnique();
-
-                    b.ToTable("OnlineExamSubmissions");
                 });
 
             modelBuilder.Entity("NursingSchool.Domain.Entities.Payment", b =>
@@ -2648,85 +2412,6 @@ namespace NursingSchool.Infrastructure.Migrations
                     b.Navigation("Student");
                 });
 
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExam", b =>
-                {
-                    b.HasOne("NursingSchool.Domain.Entities.CourseOffering", "CourseOffering")
-                        .WithMany()
-                        .HasForeignKey("CourseOfferingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NursingSchool.Domain.Entities.ApplicationUser", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("CourseOffering");
-
-                    b.Navigation("CreatedByUser");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamAnswer", b =>
-                {
-                    b.HasOne("NursingSchool.Domain.Entities.OnlineExamQuestion", "Question")
-                        .WithMany()
-                        .HasForeignKey("OnlineExamQuestionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NursingSchool.Domain.Entities.OnlineExamSubmission", "Submission")
-                        .WithMany("Answers")
-                        .HasForeignKey("OnlineExamSubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Question");
-
-                    b.Navigation("Submission");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamOption", b =>
-                {
-                    b.HasOne("NursingSchool.Domain.Entities.OnlineExamQuestion", "Question")
-                        .WithMany("Options")
-                        .HasForeignKey("OnlineExamQuestionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Question");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamQuestion", b =>
-                {
-                    b.HasOne("NursingSchool.Domain.Entities.OnlineExam", "OnlineExam")
-                        .WithMany("Questions")
-                        .HasForeignKey("OnlineExamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("OnlineExam");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamSubmission", b =>
-                {
-                    b.HasOne("NursingSchool.Domain.Entities.OnlineExam", "OnlineExam")
-                        .WithMany("Submissions")
-                        .HasForeignKey("OnlineExamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("NursingSchool.Domain.Entities.Student", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("OnlineExam");
-
-                    b.Navigation("Student");
-                });
-
             modelBuilder.Entity("NursingSchool.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("NursingSchool.Domain.Entities.PaymentGatewayTransaction", "GatewayTransaction")
@@ -2961,23 +2646,6 @@ namespace NursingSchool.Infrastructure.Migrations
                     b.Navigation("Files");
 
                     b.Navigation("Quizzes");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExam", b =>
-                {
-                    b.Navigation("Questions");
-
-                    b.Navigation("Submissions");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamQuestion", b =>
-                {
-                    b.Navigation("Options");
-                });
-
-            modelBuilder.Entity("NursingSchool.Domain.Entities.OnlineExamSubmission", b =>
-                {
-                    b.Navigation("Answers");
                 });
 
             modelBuilder.Entity("NursingSchool.Domain.Entities.Program", b =>

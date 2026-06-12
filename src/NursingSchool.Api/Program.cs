@@ -89,6 +89,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapHub<ClassroomHub>("/hubs/classroom");
+app.MapHub<ComplaintsHub>("/hubs/complaints");
 
 await DataSeeder.SeedAsync(app.Services);
 

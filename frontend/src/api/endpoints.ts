@@ -1,4 +1,4 @@
-import { api, apiUpload } from './client';
+import { api, apiPostForm, apiUpload } from './client';
 import type {
   AdminDashboard,
   AnalyticsCharts,
@@ -46,6 +46,11 @@ import type {
   StudentResult,
   StudentRiskRow,
   AppNotification,
+  Complaint,
+  ObjectiveQuestionDraft,
+  OnlineExam,
+  OnlineExamListItem,
+  OnlineExamResult,
   TwoFactorLoginRequest,
   TwoFactorSetupResponse,
   User,
@@ -242,6 +247,35 @@ export const resultsApi = {
     api.get<StudentResult[]>(`/api/students/${studentId}/results`),
 };
 
+export const complaintsApi = {
+  getMessages: (page = 1, pageSize = 50, search?: string) =>
+    api.get<PagedResult<Complaint>>(`/api/complaints?${pageQuery(page, pageSize, search)}`),
+  post: (message: string, file?: File) =>
+    file
+      ? apiPostForm<Complaint>('/api/complaints', { message }, file)
+      : api.post<Complaint>('/api/complaints', { message }),
+};
+
+export const onlineExamsApi = {
+  getExams: (courseOfferingId?: string, page = 1, pageSize = 20, search?: string) => {
+    const extra = courseOfferingId ? { courseOfferingId } : undefined;
+    return api.get<PagedResult<OnlineExamListItem>>(`/api/online-exams?${pageQuery(page, pageSize, search, extra)}`);
+  },
+  getExam: (id: string) => api.get<OnlineExam>(`/api/online-exams/${id}`),
+  createExam: (data: {
+    courseOfferingId: string;
+    title: string;
+    instructions?: string;
+    questions: ObjectiveQuestionDraft[];
+  }) => api.post<OnlineExam>('/api/online-exams', data),
+  publishExam: (id: string) => api.post<OnlineExam>(`/api/online-exams/${id}/publish`, {}),
+  closeExam: (id: string) => api.post<OnlineExam>(`/api/online-exams/${id}/close`, {}),
+  submitExam: (id: string, answers: { questionId: string; selectedOptionId: string | null }[]) =>
+    api.post<OnlineExamResult>(`/api/online-exams/${id}/submit`, { answers }),
+  getExamResults: (id: string) => api.get<OnlineExamResult[]>(`/api/online-exams/${id}/results`),
+  getMyExamResult: (id: string) => api.get<OnlineExamResult>(`/api/online-exams/${id}/my-result`),
+};
+
 export const classroomApi = {
   getSessions: (courseOfferingId?: string, page = 1, pageSize = 20, search?: string) => {
     const extra = courseOfferingId ? { courseOfferingId } : undefined;
@@ -362,9 +396,29 @@ export const clinicalApi = {
   }) => api.post<ClinicalPlacement>('/api/clinical-placements', data),
 };
 
+export type FeeBalanceSortField =
+  | 'balance'
+  | 'studentName'
+  | 'studentNo'
+  | 'totalInvoiced'
+  | 'totalPaid'
+  | 'feeStatus'
+  | 'nextDueDate'
+  | 'lastPaymentDate';
+
 export const reportsApi = {
-  getFeeBalances: (programId?: string, page = 1, pageSize = 20, search?: string) => {
-    const extra = programId ? { programId } : undefined;
+  getFeeBalances: (
+    programId?: string,
+    page = 1,
+    pageSize = 20,
+    search?: string,
+    feeStatus?: string,
+    sortBy: FeeBalanceSortField = 'balance',
+    sortDir: 'asc' | 'desc' = 'desc',
+  ) => {
+    const extra: Record<string, string> = { sortBy, sortDir };
+    if (programId) extra.programId = programId;
+    if (feeStatus) extra.feeStatus = feeStatus;
     return api.get<PagedResult<FeeBalanceRow>>(`/api/reports/fee-balances?${pageQuery(page, pageSize, search, extra)}`);
   },
   getResultsReport: (studentId: string) =>

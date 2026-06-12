@@ -42,6 +42,12 @@ public interface IApplicationDbContext
     DbSet<QuizOption> QuizOptions { get; }
     DbSet<QuizSubmission> QuizSubmissions { get; }
     DbSet<QuizAnswer> QuizAnswers { get; }
+    DbSet<Complaint> Complaints { get; }
+    DbSet<OnlineExam> OnlineExams { get; }
+    DbSet<OnlineExamQuestion> OnlineExamQuestions { get; }
+    DbSet<OnlineExamOption> OnlineExamOptions { get; }
+    DbSet<OnlineExamSubmission> OnlineExamSubmissions { get; }
+    DbSet<OnlineExamAnswer> OnlineExamAnswers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

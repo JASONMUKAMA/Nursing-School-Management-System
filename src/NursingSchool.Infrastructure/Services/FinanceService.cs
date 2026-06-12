@@ -205,7 +205,7 @@ public partial class FinanceService(IApplicationDbContext db, JpesaGateway jpesa
             payment.BankReceiptNo,
             payment.ProviderReference);
 
-    public async Task<PagedResult<FeeBalanceReportRow>> GetFeeBalanceReportAsync(Guid? programId, PaginationQuery query, CancellationToken ct = default)
+    public async Task<PagedResult<FeeBalanceReportRow>> GetFeeBalanceReportAsync(Guid? programId, FeeBalanceReportQuery query, CancellationToken ct = default)
     {
         var q = db.Students
             .Include(s => s.Program)
@@ -246,12 +246,18 @@ public partial class FinanceService(IApplicationDbContext db, JpesaGateway jpesa
                     s.Id, s.StudentNo, $"{s.FirstName} {s.LastName}", s.Program.Name,
                     totalInvoiced, totalPaid, balance, feeStatus, nextDue, lastPayment);
             })
-            .Where(x => x.Balance > 0 || x.TotalInvoiced > 0)
-            .OrderByDescending(x => x.Balance)
-            .ToList();
+            .Where(x => x.Balance > 0 || x.TotalInvoiced > 0);
 
-        var total = rows.Count;
-        var page = rows
+        if (!string.IsNullOrWhiteSpace(query.FeeStatus))
+        {
+            var status = query.FeeStatus.Trim();
+            rows = rows.Where(x => x.FeeStatus.Equals(status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var sortedRows = ApplyFeeBalanceSort(rows, query.SortBy, query.SortDir).ToList();
+
+        var total = sortedRows.Count;
+        var page = sortedRows
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ToList();
@@ -354,5 +360,41 @@ public partial class FinanceService(IApplicationDbContext db, JpesaGateway jpesa
             invoice.AcademicYear, invoice.TotalAmount, amountPaid, balance, status,
             invoice.IssuedAt, invoice.DueDate, lastPayment,
             invoice.Items.Select(i => new InvoiceItemResponse(i.Id, i.Description, i.Amount)).ToList());
+    }
+
+    private static IEnumerable<FeeBalanceReportRow> ApplyFeeBalanceSort(
+        IEnumerable<FeeBalanceReportRow> rows, string? sortBy, string? sortDir)
+    {
+        var desc = !string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        return (sortBy ?? "balance").ToLowerInvariant() switch
+        {
+            "studentname" or "name" => desc
+                ? rows.OrderByDescending(x => x.StudentName, StringComparer.OrdinalIgnoreCase)
+                : rows.OrderBy(x => x.StudentName, StringComparer.OrdinalIgnoreCase),
+            "studentno" => desc
+                ? rows.OrderByDescending(x => x.StudentNo, StringComparer.OrdinalIgnoreCase)
+                : rows.OrderBy(x => x.StudentNo, StringComparer.OrdinalIgnoreCase),
+            "program" or "programname" => desc
+                ? rows.OrderByDescending(x => x.ProgramName, StringComparer.OrdinalIgnoreCase)
+                : rows.OrderBy(x => x.ProgramName, StringComparer.OrdinalIgnoreCase),
+            "invoiced" or "totalinvoiced" => desc
+                ? rows.OrderByDescending(x => x.TotalInvoiced)
+                : rows.OrderBy(x => x.TotalInvoiced),
+            "paid" or "totalpaid" => desc
+                ? rows.OrderByDescending(x => x.TotalPaid)
+                : rows.OrderBy(x => x.TotalPaid),
+            "status" or "feestatus" => desc
+                ? rows.OrderByDescending(x => x.FeeStatus, StringComparer.OrdinalIgnoreCase)
+                : rows.OrderBy(x => x.FeeStatus, StringComparer.OrdinalIgnoreCase),
+            "nextdue" or "nextduedate" => desc
+                ? rows.OrderByDescending(x => x.NextDueDate ?? DateOnly.MinValue)
+                : rows.OrderBy(x => x.NextDueDate ?? DateOnly.MaxValue),
+            "lastpayment" or "lastpaymentdate" => desc
+                ? rows.OrderByDescending(x => x.LastPaymentDate ?? DateOnly.MinValue)
+                : rows.OrderBy(x => x.LastPaymentDate ?? DateOnly.MaxValue),
+            _ => desc
+                ? rows.OrderByDescending(x => x.Balance)
+                : rows.OrderBy(x => x.Balance),
+        };
     }
 }

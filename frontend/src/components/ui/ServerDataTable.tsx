@@ -22,7 +22,7 @@ interface ServerDataTableProps<T> {
   pageSize?: number;
   searchPlaceholder?: string;
   emptyMessage?: string;
-  refreshKey?: number;
+  refreshKey?: string | number;
   printable?: boolean;
   printTitle?: string;
   onRowClick?: (row: T) => void;
