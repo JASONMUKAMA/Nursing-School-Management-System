@@ -208,7 +208,7 @@ export function LoginPage() {
 
         <p className="login-hint">
 
-          Default: admin / Admin@123 ·{' '}
+          Default: admin / Admin@123 · student1 / Student@123 ·{' '}
 
           <Link to="/" className="login-back-link">
 

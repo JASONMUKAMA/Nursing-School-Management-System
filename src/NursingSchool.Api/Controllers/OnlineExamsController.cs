@@ -14,8 +14,8 @@ namespace NursingSchool.Api.Controllers;
 public class OnlineExamsController(IOnlineExamsService onlineExamsService) : ControllerBase
 {
     private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    private bool IsStudent => User.IsInRole(RoleNames.Student);
     private bool IsStaff => User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Lecturer);
+    private bool IsStudent => User.IsInRole(RoleNames.Student) && !IsStaff;
     private Guid? StudentId =>
         Guid.TryParse(User.FindFirst("studentId")?.Value, out var id) ? id : null;
 
@@ -37,6 +37,15 @@ public class OnlineExamsController(IOnlineExamsService onlineExamsService) : Con
         [FromBody] CreateOnlineExamRequest request, CancellationToken ct)
     {
         try { return Ok(await onlineExamsService.CreateExamAsync(request, UserId, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{RoleNames.Admin},{RoleNames.Lecturer}")]
+    public async Task<ActionResult<OnlineExamResponse>> UpdateExam(
+        Guid id, [FromBody] UpdateOnlineExamRequest request, CancellationToken ct)
+    {
+        try { return Ok(await onlineExamsService.UpdateExamAsync(id, request, UserId, ct)); }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
@@ -78,7 +87,7 @@ public class OnlineExamsController(IOnlineExamsService onlineExamsService) : Con
     public async Task<ActionResult<OnlineExamResultResponse>> GetMyResult(Guid id, CancellationToken ct)
     {
         if (StudentId is not { } studentId)
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = "No student record is linked to this account." });
+            return NotFound();
 
         var result = await onlineExamsService.GetMyExamResultAsync(id, studentId, ct);
         return result == null ? NotFound() : Ok(result);

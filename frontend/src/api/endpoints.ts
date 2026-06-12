@@ -268,6 +268,12 @@ export const onlineExamsApi = {
     instructions?: string;
     questions: ObjectiveQuestionDraft[];
   }) => api.post<OnlineExam>('/api/online-exams', data),
+  updateExam: (id: string, data: {
+    courseOfferingId: string;
+    title: string;
+    instructions?: string;
+    questions: ObjectiveQuestionDraft[];
+  }) => api.put<OnlineExam>(`/api/online-exams/${id}`, data),
   publishExam: (id: string) => api.post<OnlineExam>(`/api/online-exams/${id}/publish`, {}),
   closeExam: (id: string) => api.post<OnlineExam>(`/api/online-exams/${id}/close`, {}),
   submitExam: (id: string, answers: { questionId: string; selectedOptionId: string | null }[]) =>

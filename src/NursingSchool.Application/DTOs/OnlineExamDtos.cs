@@ -6,6 +6,12 @@ public record CreateOnlineExamRequest(
     string? Instructions,
     IReadOnlyList<OnlineExamQuestionRequest> Questions);
 
+public record UpdateOnlineExamRequest(
+    Guid CourseOfferingId,
+    string Title,
+    string? Instructions,
+    IReadOnlyList<OnlineExamQuestionRequest> Questions);
+
 public record OnlineExamQuestionRequest(
     string Text,
     string QuestionType,

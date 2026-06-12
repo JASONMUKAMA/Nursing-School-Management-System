@@ -8,7 +8,7 @@ import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { ServerDataTable } from '../../components/ui/ServerDataTable';
 import { useAuth } from '../../hooks/useAuth';
-import type { CourseOffering, OnlineExamListItem, OnlineExamResult } from '../../types';
+import type { CourseOffering, OnlineExam, OnlineExamListItem, OnlineExamResult } from '../../types';
 import { toast } from '../../utils/toast';
 
 function StatusBadge({ status }: { status: OnlineExamListItem['status'] }) {
@@ -17,13 +17,16 @@ function StatusBadge({ status }: { status: OnlineExamListItem['status'] }) {
 }
 
 export function OnlineExamsPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const navigate = useNavigate();
   const canManage = hasRole('Admin', 'Lecturer');
-  const isStudent = hasRole('Student');
+  const isStudent = hasRole('Student') && !canManage;
+  const studentProfileMissing = isStudent && !user?.studentId;
 
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [editingExam, setEditingExam] = useState<OnlineExam | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState('');
   const [resultsExam, setResultsExam] = useState<OnlineExamListItem | null>(null);
@@ -74,6 +77,23 @@ export function OnlineExamsPage() {
     }
   };
 
+  const openEdit = async (exam: OnlineExamListItem) => {
+    setLoadingEdit(true);
+    try {
+      setEditingExam(await onlineExamsApi.getExam(exam.id));
+      setShowBuilder(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load exam for editing.');
+    } finally {
+      setLoadingEdit(false);
+    }
+  };
+
+  const closeBuilder = () => {
+    setShowBuilder(false);
+    setEditingExam(null);
+  };
+
   return (
     <div className="page">
       <div className="page-header">
@@ -82,11 +102,17 @@ export function OnlineExamsPage() {
           <p className="text-muted">Objective (multiple choice) exams — separate from live classroom quizzes.</p>
         </div>
         {canManage && (
-          <Button onClick={() => setShowBuilder(true)}>+ New Exam</Button>
+          <Button onClick={() => { setEditingExam(null); setShowBuilder(true); }}>+ New Exam</Button>
         )}
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError('')} />}
+      {studentProfileMissing && (
+        <div className="alert alert-info" role="alert">
+          Signed in as <strong>{user?.userName}</strong>, but this account is not linked to a student profile.
+          Log in with <strong>student1</strong> / <strong>Student@123</strong> to see your exams.
+        </div>
+      )}
 
       <Card>
         <ServerDataTable<OnlineExamListItem>
@@ -112,6 +138,11 @@ export function OnlineExamsPage() {
                       {r.status === 'Published' ? 'Take Exam' : 'View'}
                     </Button>
                   )}
+                  {canManage && r.status !== 'Closed' && (
+                    <Button size="sm" variant="secondary" onClick={() => void openEdit(r)} disabled={loadingEdit}>
+                      Edit
+                    </Button>
+                  )}
                   {canManage && r.status === 'Draft' && (
                     <Button size="sm" onClick={() => void publish(r)}>Publish</Button>
                   )}
@@ -134,18 +165,19 @@ export function OnlineExamsPage() {
       </Card>
 
       <Modal
-        title="Create Online Exam"
+        title={editingExam ? 'Edit Online Exam' : 'Create Online Exam'}
         isOpen={showBuilder}
-        onClose={() => setShowBuilder(false)}
+        onClose={closeBuilder}
         size="lg"
       >
         <ObjectiveExamBuilder
           offerings={offerings}
+          exam={editingExam}
           onSaved={() => {
-            setShowBuilder(false);
+            closeBuilder();
             setRefreshKey((k) => k + 1);
           }}
-          onCancel={() => setShowBuilder(false)}
+          onCancel={closeBuilder}
         />
       </Modal>
 

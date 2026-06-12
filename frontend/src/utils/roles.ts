@@ -68,7 +68,9 @@ export interface NavGroup {
 
 const schedulingRoles: Role[] = ['Admin', 'Registrar', 'Lecturer', 'ClinicalCoordinator'];
 
-const academicRoles: Role[] = ['Admin', 'Registrar', 'Lecturer'];
+const structureViewRoles: Role[] = ['Admin', 'Registrar', 'Lecturer', 'Student'];
+
+const structureManageRoles: Role[] = ['Admin', 'Registrar'];
 
 const clinicalRoles: Role[] = ['Admin', 'ClinicalCoordinator', 'Lecturer'];
 
@@ -174,23 +176,23 @@ export const NAV_GROUPS: NavGroup[] = [
 
       {
 
-        label: 'Programs & Courses',
+        label: 'Structure',
 
         icon: '📚',
 
         path: '/app/academic/programs',
 
-        roles: academicRoles,
+        roles: structureViewRoles,
 
         children: [
 
-          { path: '/app/academic/programs', label: 'Programs', icon: '🎓', roles: academicRoles },
+          { path: '/app/academic/programs', label: 'Programs', icon: '🎓', roles: structureViewRoles },
 
-          { path: '/app/academic/courses', label: 'Courses', icon: '📖', roles: academicRoles },
+          { path: '/app/academic/courses', label: 'Courses', icon: '📖', roles: structureViewRoles },
 
-          { path: '/app/academic/offerings', label: 'Offerings', icon: '🗓️', roles: academicRoles },
+          { path: '/app/academic/offerings', label: 'Offerings', icon: '🗓️', roles: structureViewRoles },
 
-          { path: '/app/academic/enrollments', label: 'Enrollments', icon: '✅', roles: academicRoles },
+          { path: '/app/academic/enrollments', label: 'Enrollments', icon: '✅', roles: structureManageRoles },
 
         ],
 
@@ -224,7 +226,7 @@ export const NAV_GROUPS: NavGroup[] = [
 
         path: '/app/online-exams',
 
-        label: 'Online Exams',
+        label: 'Online Tests',
 
         icon: '📝',
 

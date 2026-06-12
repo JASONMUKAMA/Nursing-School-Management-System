@@ -25,7 +25,7 @@ export function TakeOnlineExamPage() {
         const [examData, myResult] = await Promise.all([
           onlineExamsApi.getExam(examId),
           onlineExamsApi.getMyExamResult(examId).catch((err) => {
-            if (err instanceof ApiClientError && err.status === 404) return null;
+            if (err instanceof ApiClientError && (err.status === 404 || err.status === 403)) return null;
             throw err;
           }),
         ]);

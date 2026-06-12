@@ -116,6 +116,7 @@ public interface IOnlineExamsService
     Task<PagedResult<OnlineExamListItemResponse>> GetExamsAsync(Guid? courseOfferingId, Guid userId, bool isStudent, PaginationQuery query, CancellationToken ct = default);
     Task<OnlineExamResponse?> GetExamAsync(Guid id, Guid userId, bool isStudent, bool includeAnswers, CancellationToken ct = default);
     Task<OnlineExamResponse> CreateExamAsync(CreateOnlineExamRequest request, Guid createdBy, CancellationToken ct = default);
+    Task<OnlineExamResponse> UpdateExamAsync(Guid id, UpdateOnlineExamRequest request, Guid userId, CancellationToken ct = default);
     Task<OnlineExamResponse> PublishExamAsync(Guid id, Guid userId, CancellationToken ct = default);
     Task<OnlineExamResponse> CloseExamAsync(Guid id, Guid userId, CancellationToken ct = default);
     Task<OnlineExamResultResponse> SubmitExamAsync(Guid examId, Guid studentId, SubmitOnlineExamRequest request, CancellationToken ct = default);

@@ -51,5 +51,7 @@ public static class DataSeeder
         }
 
         await BulkDataSeeder.SeedAsync(services);
+        await BulkDataSeeder.EnsureStudentPortalAccountsAsync(services);
+        await BulkDataSeeder.EnsureOnlineExamsAsync(services);
     }
 }

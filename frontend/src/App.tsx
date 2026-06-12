@@ -99,7 +99,7 @@ export default function App() {
 
 
 
-          <Route element={<ProtectedRoute roles={['Admin', 'Registrar', 'Lecturer']} />}>
+          <Route element={<ProtectedRoute roles={['Admin', 'Registrar', 'Lecturer', 'Student']} />}>
 
             <Route path="academic" element={<Navigate to="/app/academic/programs" replace />} />
             <Route path="academic/*" element={<AcademicPage />} />

@@ -23,7 +23,18 @@ public class OnlineExamsService(IApplicationDbContext db) : IOnlineExamsService
 
         if (isStudent)
         {
-            var studentId = await GetStudentIdAsync(userId, ct);
+            var studentId = await TryGetStudentIdAsync(userId, ct);
+            if (studentId == null)
+            {
+                return new PagedResult<OnlineExamListItemResponse>
+                {
+                    Items = [],
+                    TotalCount = 0,
+                    Page = query.Page,
+                    PageSize = query.PageSize
+                };
+            }
+
             exams = exams.Where(e =>
                 e.Status != QuizStatuses.Draft &&
                 db.Enrollments.Any(en => en.StudentId == studentId && en.CourseOfferingId == e.CourseOfferingId));
@@ -62,7 +73,9 @@ public class OnlineExamsService(IApplicationDbContext db) : IOnlineExamsService
 
         if (isStudent)
         {
-            var studentId = await GetStudentIdAsync(userId, ct);
+            var studentId = await TryGetStudentIdAsync(userId, ct);
+            if (studentId == null) return null;
+
             var enrolled = await db.Enrollments.AnyAsync(
                 e => e.StudentId == studentId && e.CourseOfferingId == exam.CourseOfferingId, ct);
             if (!enrolled) return null;
@@ -113,6 +126,67 @@ public class OnlineExamsService(IApplicationDbContext db) : IOnlineExamsService
 
         exam.CourseOffering = offering;
         return ToExamResponse(exam, includeAnswers: true);
+    }
+
+    public async Task<OnlineExamResponse> UpdateExamAsync(
+        Guid id, UpdateOnlineExamRequest request, Guid userId, CancellationToken ct = default)
+    {
+        var exam = await LoadExamAsync(id, ct)
+            ?? throw new InvalidOperationException("Exam not found.");
+
+        if (exam.Status == QuizStatuses.Closed)
+            throw new InvalidOperationException("Closed exams cannot be edited.");
+
+        if (await db.OnlineExamSubmissions.AnyAsync(s => s.OnlineExamId == id, ct))
+            throw new InvalidOperationException("This exam already has student submissions and cannot be edited.");
+
+        var offering = await db.CourseOfferings.Include(o => o.Course)
+            .FirstOrDefaultAsync(o => o.Id == request.CourseOfferingId, ct)
+            ?? throw new InvalidOperationException("Course offering not found.");
+
+        if (request.Questions.Count == 0)
+            throw new InvalidOperationException("An exam needs at least one objective question.");
+
+        exam.CourseOfferingId = offering.Id;
+        exam.Title = request.Title.Trim();
+        exam.Instructions = string.IsNullOrWhiteSpace(request.Instructions) ? null : request.Instructions.Trim();
+        exam.UpdatedBy = userId;
+
+        foreach (var question in exam.Questions.ToList())
+        {
+            db.OnlineExamOptions.RemoveRange(question.Options);
+            db.OnlineExamQuestions.Remove(question);
+        }
+
+        var order = 0;
+        foreach (var q in request.Questions)
+        {
+            ValidateQuestion(q);
+            var question = new OnlineExamQuestion
+            {
+                OnlineExamId = exam.Id,
+                Text = q.Text.Trim(),
+                QuestionType = q.QuestionType,
+                Points = q.Points,
+                SortOrder = order++,
+                CreatedBy = userId,
+            };
+            var optOrder = 0;
+            foreach (var o in q.Options)
+                question.Options.Add(new OnlineExamOption
+                {
+                    Text = o.Text.Trim(),
+                    IsCorrect = o.IsCorrect,
+                    SortOrder = optOrder++,
+                    CreatedBy = userId,
+                });
+            db.OnlineExamQuestions.Add(question);
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        exam = await LoadExamAsync(id, ct)!;
+        return ToExamResponse(exam!, includeAnswers: true);
     }
 
     public async Task<OnlineExamResponse> PublishExamAsync(Guid id, Guid userId, CancellationToken ct = default)
@@ -237,12 +311,8 @@ public class OnlineExamsService(IApplicationDbContext db) : IOnlineExamsService
             throw new InvalidOperationException($"Question \"{q.Text}\" needs a correct option marked.");
     }
 
-    private async Task<Guid> GetStudentIdAsync(Guid userId, CancellationToken ct)
-    {
-        var student = await db.Students.FirstOrDefaultAsync(s => s.UserId == userId, ct)
-            ?? throw new InvalidOperationException("Student record not found for this account.");
-        return student.Id;
-    }
+    private async Task<Guid?> TryGetStudentIdAsync(Guid userId, CancellationToken ct) =>
+        await StudentAccountResolver.ResolveStudentIdAsync(db, userId, null, ct);
 
     private async Task<OnlineExam?> LoadExamAsync(Guid examId, CancellationToken ct) =>
         await db.OnlineExams

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { onlineExamsApi } from '../../api/endpoints';
-import type { CourseOffering, ObjectiveQuestionDraft, ObjectiveQuestionType } from '../../types';
+import type { CourseOffering, ObjectiveQuestionDraft, ObjectiveQuestionType, OnlineExam } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -8,8 +8,21 @@ import { toast } from '../../utils/toast';
 
 interface ObjectiveExamBuilderProps {
   offerings: CourseOffering[];
+  exam?: OnlineExam | null;
   onSaved: () => void;
   onCancel: () => void;
+}
+
+function examToDrafts(exam: OnlineExam): ObjectiveQuestionDraft[] {
+  return exam.questions.map((q) => ({
+    text: q.text,
+    questionType: q.questionType,
+    points: q.points,
+    options: q.options.map((o) => ({
+      text: o.text,
+      isCorrect: o.isCorrect === true,
+    })),
+  }));
 }
 
 function emptyQuestion(type: ObjectiveQuestionType = 'MultipleChoice'): ObjectiveQuestionDraft {
@@ -35,12 +48,23 @@ function emptyQuestion(type: ObjectiveQuestionType = 'MultipleChoice'): Objectiv
   };
 }
 
-export function ObjectiveExamBuilder({ offerings, onSaved, onCancel }: ObjectiveExamBuilderProps) {
-  const [courseOfferingId, setCourseOfferingId] = useState('');
-  const [title, setTitle] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [questions, setQuestions] = useState<ObjectiveQuestionDraft[]>([emptyQuestion()]);
+export function ObjectiveExamBuilder({ offerings, exam, onSaved, onCancel }: ObjectiveExamBuilderProps) {
+  const isEditing = Boolean(exam);
+  const [courseOfferingId, setCourseOfferingId] = useState(exam?.courseOfferingId ?? '');
+  const [title, setTitle] = useState(exam?.title ?? '');
+  const [instructions, setInstructions] = useState(exam?.instructions ?? '');
+  const [questions, setQuestions] = useState<ObjectiveQuestionDraft[]>(
+    exam ? examToDrafts(exam) : [emptyQuestion()],
+  );
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!exam) return;
+    setCourseOfferingId(exam.courseOfferingId);
+    setTitle(exam.title);
+    setInstructions(exam.instructions ?? '');
+    setQuestions(examToDrafts(exam));
+  }, [exam]);
 
   const updateQuestion = (index: number, patch: Partial<ObjectiveQuestionDraft>) =>
     setQuestions((qs) => qs.map((q, i) => (i === index ? { ...q, ...patch } : q)));
@@ -101,17 +125,24 @@ export function ObjectiveExamBuilder({ offerings, onSaved, onCancel }: Objective
     }
     setSaving(true);
     try {
-      let exam = await onlineExamsApi.createExam({
+      const payload = {
         courseOfferingId,
         title: title.trim(),
         instructions: instructions.trim() || undefined,
         questions,
-      });
-      if (publish) {
-        exam = await onlineExamsApi.publishExam(exam.id);
-        toast.success('Exam published — students can take it now.');
+      };
+
+      if (isEditing && exam) {
+        await onlineExamsApi.updateExam(exam.id, payload);
+        toast.success('Exam updated.');
       } else {
-        toast.success('Exam saved as draft.');
+        let created = await onlineExamsApi.createExam(payload);
+        if (publish) {
+          created = await onlineExamsApi.publishExam(created.id);
+          toast.success('Exam published — students can take it now.');
+        } else {
+          toast.success('Exam saved as draft.');
+        }
       }
       onSaved();
     } catch (err) {
@@ -226,10 +257,18 @@ export function ObjectiveExamBuilder({ offerings, onSaved, onCancel }: Objective
 
       <div className="quiz-builder-actions">
         <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button variant="secondary" onClick={() => void save(false)} disabled={saving}>Save Draft</Button>
-        <Button onClick={() => void save(true)} disabled={saving}>
-          {saving ? 'Saving…' : 'Save & Publish'}
-        </Button>
+        {isEditing ? (
+          <Button onClick={() => void save(false)} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={() => void save(false)} disabled={saving}>Save Draft</Button>
+            <Button onClick={() => void save(true)} disabled={saving}>
+              {saving ? 'Saving…' : 'Save & Publish'}
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

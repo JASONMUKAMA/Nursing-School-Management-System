@@ -224,7 +224,7 @@ public class IdentityAuthService(
         await userManager.UpdateAsync(user);
         var roles = await userManager.GetRolesAsync(user);
         await loginActivityService.RecordLoginAsync(user, roles.ToList(), client, ct);
-        var studentId = await db.Students.Where(s => s.UserId == user.Id).Select(s => (Guid?)s.Id).FirstOrDefaultAsync(ct);
+        var studentId = await StudentAccountResolver.ResolveStudentIdAsync(db, user.Id, user.UserName, ct);
         var (accessToken, expiresAt) = jwt.GenerateAccessToken(user, roles, studentId);
         return new LoginResponse(accessToken, "", expiresAt, MapUser(user, roles.ToList(), studentId));
     }

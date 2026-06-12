@@ -222,6 +222,60 @@ public static class BulkDataSeeder
         logger.LogInformation("Bulk seed completed.");
     }
 
+    public static async Task EnsureStudentPortalAccountsAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
+
+        const int targetAccounts = 2000;
+        var unlinked = await db.Students
+            .Where(s => s.UserId == null)
+            .OrderBy(s => s.StudentNo)
+            .Take(targetAccounts)
+            .ToListAsync();
+
+        if (unlinked.Count == 0) return;
+
+        var linked = 0;
+        for (var i = 0; i < unlinked.Count; i++)
+        {
+            var student = unlinked[i];
+            var username = $"student{i + 1}";
+            var user = await userManager.FindByNameAsync(username);
+            if (user == null)
+            {
+                user = new ApplicationUser
+                {
+                    UserName = username,
+                    Email = $"{username}@student.nursingschool.ug",
+                    EmailConfirmed = true,
+                    FirstName = student.FirstName,
+                    LastName = student.LastName,
+                    IsActive = true,
+                };
+                var createResult = await userManager.CreateAsync(user, "Student@123");
+                if (!createResult.Succeeded)
+                {
+                    logger.LogWarning("Could not create portal account {UserName}.", username);
+                    continue;
+                }
+
+                await userManager.AddToRoleAsync(user, RoleNames.Student);
+            }
+
+            student.UserId = user.Id;
+            linked++;
+
+            if (linked % 100 == 0)
+                await db.SaveChangesAsync();
+        }
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Linked {Count} student portal accounts (student1…student{Last}).", linked, linked);
+    }
+
     private static async Task EnsureRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
     {
         foreach (var role in RoleNames.All)
@@ -391,5 +445,230 @@ public static class BulkDataSeeder
             db.FeeStructures.Add(new FeeStructure { ProgramId = p.Id, AcademicYear = "2025", FeeName = "Clinical Fee", Amount = 1500000 });
         }
         await db.SaveChangesAsync();
+    }
+
+    public static async Task EnsureOnlineExamsAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
+
+        if (await db.OnlineExams.CountAsync() >= 3)
+        {
+            await EnsureStudentEnrollmentsForExamsAsync(db, userManager, logger);
+            return;
+        }
+
+        var creator = await userManager.FindByNameAsync("lecturer1")
+            ?? await userManager.FindByNameAsync("admin");
+        if (creator == null)
+        {
+            logger.LogWarning("Online exam seed skipped: no lecturer1 or admin account.");
+            return;
+        }
+
+        var offerings = await db.CourseOfferings
+            .Include(o => o.Course)
+            .OrderBy(o => o.Course.Code)
+            .ToListAsync();
+
+        var targetCodes = new[] { "NUR101", "NUR201", "NUR202" };
+        var enrollmentCounts = await db.Enrollments
+            .GroupBy(e => e.CourseOfferingId)
+            .Select(g => new { OfferingId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OfferingId, x => x.Count);
+
+        var pickedOfferings = targetCodes
+            .Select(code => offerings
+                .Where(o => o.Course.Code == code)
+                .OrderByDescending(o => enrollmentCounts.GetValueOrDefault(o.Id))
+                .FirstOrDefault())
+            .Where(o => o != null)
+            .Cast<CourseOffering>()
+            .ToList();
+
+        if (pickedOfferings.Count < 3)
+        {
+            pickedOfferings = offerings
+                .GroupBy(o => o.Course.Code)
+                .Take(3)
+                .Select(g => g.First())
+                .ToList();
+        }
+
+        if (pickedOfferings.Count < 3)
+        {
+            logger.LogWarning("Online exam seed skipped: need at least 3 course offerings.");
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var examTemplates = new[]
+        {
+            (
+                Title: "Fundamentals of Nursing — Mid-Semester Test",
+                Instructions: "Answer all questions. Each question has one best answer.",
+                Questions: new (string Text, string Type, (string Text, bool Correct)[] Options)[]
+                {
+                    (
+                        "What is the normal adult resting heart rate range (beats per minute)?",
+                        OnlineExamQuestionTypes.MultipleChoice,
+                        new[] { ("40–60 bpm", false), ("60–100 bpm", true), ("100–140 bpm", false), ("140–180 bpm", false) }
+                    ),
+                    (
+                        "Hand hygiene should be performed before and after every patient contact.",
+                        OnlineExamQuestionTypes.TrueFalse,
+                        new[] { ("True", true), ("False", false) }
+                    ),
+                    (
+                        "Which vital sign is measured in millimetres of mercury (mmHg)?",
+                        OnlineExamQuestionTypes.MultipleChoice,
+                        new[] { ("Temperature", false), ("Pulse", false), ("Blood pressure", true), ("Respiratory rate", false) }
+                    ),
+                }
+            ),
+            (
+                Title: "Medical-Surgical Nursing — Objective Quiz",
+                Instructions: "Select the most accurate answer for each question.",
+                Questions: new (string Text, string Type, (string Text, bool Correct)[] Options)[]
+                {
+                    (
+                        "A patient with type 2 diabetes should be monitored primarily for:",
+                        OnlineExamQuestionTypes.MultipleChoice,
+                        new[] { ("Hyperglycaemia", true), ("Hyperkalaemia", false), ("Hypothermia", false), ("Bradycardia", false) }
+                    ),
+                    (
+                        "Deep vein thrombosis prophylaxis may include early mobilisation.",
+                        OnlineExamQuestionTypes.TrueFalse,
+                        new[] { ("True", true), ("False", false) }
+                    ),
+                    (
+                        "Post-operative wound infection is best prevented by:",
+                        OnlineExamQuestionTypes.MultipleChoice,
+                        new[] { ("Restricting fluids", false), ("Aseptic technique", true), ("Prolonged bed rest", false), ("High-dose antibiotics for all patients", false) }
+                    ),
+                }
+            ),
+            (
+                Title: "Pharmacology — Dosage & Safety Test",
+                Instructions: "This test covers basic medication safety and calculations.",
+                Questions: new (string Text, string Type, (string Text, bool Correct)[] Options)[]
+                {
+                    (
+                        "Before administering any medication, the nurse must verify:",
+                        OnlineExamQuestionTypes.MultipleChoice,
+                        new[] { ("Patient identity only", false), ("Right patient, drug, dose, route, and time", true), ("Prescription date only", false), ("Pharmacy label colour", false) }
+                    ),
+                    (
+                        "Intramuscular injections should never be given in an inflamed or oedematous site.",
+                        OnlineExamQuestionTypes.TrueFalse,
+                        new[] { ("True", true), ("False", false) }
+                    ),
+                    (
+                        "Which route provides the fastest systemic drug absorption?",
+                        OnlineExamQuestionTypes.MultipleChoice,
+                        new[] { ("Oral", false), ("Subcutaneous", false), ("Intravenous", true), ("Topical", false) }
+                    ),
+                }
+            ),
+        };
+
+        for (var i = 0; i < examTemplates.Length; i++)
+        {
+            var template = examTemplates[i];
+            var offering = pickedOfferings[i];
+            var exam = new OnlineExam
+            {
+                CourseOfferingId = offering.Id,
+                CreatedByUserId = creator.Id,
+                Title = template.Title,
+                Instructions = template.Instructions,
+                Status = QuizStatuses.Published,
+                PublishedAt = now.AddDays(-7 + i),
+                CreatedBy = creator.Id,
+            };
+
+            var questionOrder = 0;
+            foreach (var question in template.Questions)
+            {
+                var q = new OnlineExamQuestion
+                {
+                    Text = question.Text,
+                    QuestionType = question.Type,
+                    Points = 1,
+                    SortOrder = questionOrder++,
+                    CreatedBy = creator.Id,
+                };
+
+                var optionOrder = 0;
+                foreach (var option in question.Options)
+                {
+                    q.Options.Add(new OnlineExamOption
+                    {
+                        Text = option.Text,
+                        IsCorrect = option.Correct,
+                        SortOrder = optionOrder++,
+                        CreatedBy = creator.Id,
+                    });
+                }
+
+                exam.Questions.Add(q);
+            }
+
+            db.OnlineExams.Add(exam);
+        }
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Seeded {Count} published online exams.", examTemplates.Length);
+        await EnsureStudentEnrollmentsForExamsAsync(db, userManager, logger);
+    }
+
+    private static async Task EnsureStudentEnrollmentsForExamsAsync(
+        AppDbContext db,
+        UserManager<ApplicationUser> userManager,
+        ILogger<AppDbContext> logger)
+    {
+        var examOfferingIds = await db.OnlineExams
+            .Where(e => e.Status == QuizStatuses.Published)
+            .Select(e => e.CourseOfferingId)
+            .Distinct()
+            .ToListAsync();
+
+        if (examOfferingIds.Count == 0) return;
+
+        var creator = await userManager.FindByNameAsync("admin");
+        var studentUsers = await userManager.GetUsersInRoleAsync(RoleNames.Student);
+        var added = 0;
+
+        foreach (var user in studentUsers)
+        {
+            var studentId = await StudentAccountResolver.ResolveStudentIdAsync(db, user, CancellationToken.None);
+            if (studentId == null) continue;
+
+            var student = await db.Students.FirstAsync(s => s.Id == studentId);
+
+            foreach (var offeringId in examOfferingIds)
+            {
+                if (await db.Enrollments.AnyAsync(e => e.StudentId == student.Id && e.CourseOfferingId == offeringId))
+                    continue;
+
+                db.Enrollments.Add(new Enrollment
+                {
+                    StudentId = student.Id,
+                    CourseOfferingId = offeringId,
+                    EnrollmentDate = student.AdmissionDate,
+                    Status = EnrollmentStatuses.Enrolled,
+                    CreatedBy = creator?.Id,
+                });
+                added++;
+            }
+        }
+
+        if (added > 0)
+        {
+            await db.SaveChangesAsync();
+            logger.LogInformation("Linked {Count} student enrollments to seeded online exam offerings.", added);
+        }
     }
 }
