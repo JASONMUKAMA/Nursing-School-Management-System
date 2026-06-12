@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IAcademicService, AcademicService>();
         services.AddScoped<IAttendanceService, AttendanceService>();
         services.AddScoped<IResultsService, ResultsService>();
+        services.AddScoped<IClassroomService, ClassroomService>();
         services.AddHttpClient<JpesaGateway>();
         services.AddScoped<IFinanceService, FinanceService>();
         services.AddScoped<IClinicalService, ClinicalService>();

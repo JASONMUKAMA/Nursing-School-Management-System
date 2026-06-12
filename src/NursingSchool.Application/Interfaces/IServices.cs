@@ -79,6 +79,32 @@ public interface IClinicalService
     Task<ClinicalEvaluationResponse> SubmitEvaluationAsync(CreateClinicalEvaluationRequest request, Guid evaluatorId, CancellationToken ct = default);
 }
 
+public interface IClassroomService
+{
+    // Live sessions
+    Task<LiveSessionResponse> CreateSessionAsync(CreateLiveSessionRequest request, Guid hostUserId, CancellationToken ct = default);
+    Task<PagedResult<LiveSessionResponse>> GetSessionsAsync(Guid? courseOfferingId, Guid userId, bool isStudent, PaginationQuery query, CancellationToken ct = default);
+    Task<LiveSessionDetailResponse?> GetSessionAsync(Guid id, Guid userId, bool isStudent, CancellationToken ct = default);
+    Task<LiveSessionDetailResponse> StartSessionAsync(Guid id, Guid userId, CancellationToken ct = default);
+    Task<LiveSessionDetailResponse> EndSessionAsync(Guid id, Guid userId, CancellationToken ct = default);
+
+    // Lecture files
+    Task<LectureFileResponse> AddFileAsync(Guid sessionId, string fileName, string fileUrl, long sizeBytes, Guid uploadedBy, CancellationToken ct = default);
+    Task<IReadOnlyList<LectureFileResponse>> GetFilesAsync(Guid sessionId, CancellationToken ct = default);
+
+    // Quizzes (teacher authors questions + correct answers)
+    Task<QuizResponse> CreateQuizAsync(CreateQuizRequest request, Guid createdBy, CancellationToken ct = default);
+    Task<IReadOnlyList<QuizResponse>> GetQuizzesAsync(Guid sessionId, bool includeAnswers, CancellationToken ct = default);
+    Task<QuizResponse?> GetQuizAsync(Guid quizId, bool includeAnswers, CancellationToken ct = default);
+    Task<QuizResponse> PublishQuizAsync(Guid quizId, Guid userId, CancellationToken ct = default);
+    Task<QuizResponse> CloseQuizAsync(Guid quizId, Guid userId, CancellationToken ct = default);
+
+    // Submissions — auto-graded against the stored correct answers
+    Task<QuizResultResponse> SubmitQuizAsync(Guid quizId, Guid studentId, SubmitQuizRequest request, CancellationToken ct = default);
+    Task<IReadOnlyList<QuizResultResponse>> GetQuizResultsAsync(Guid quizId, CancellationToken ct = default);
+    Task<QuizResultResponse?> GetMyQuizResultAsync(Guid quizId, Guid studentId, CancellationToken ct = default);
+}
+
 public interface IDashboardService
 {
     Task<DashboardSummary> GetSummaryAsync(CancellationToken ct = default);

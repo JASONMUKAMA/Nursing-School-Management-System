@@ -21,6 +21,9 @@ import type {
   FinanceDashboard,
   GatewayTransaction,
   Invoice,
+  LectureFile,
+  LiveSession,
+  LiveSessionDetail,
   LoginActivity,
   LoginRequest,
   LoginResponse,
@@ -32,6 +35,9 @@ import type {
   PublicStudentFeeSummary,
   Program,
   PublicStats,
+  Quiz,
+  QuizQuestionDraft,
+  QuizResult,
   SchoolEvent,
   Semester,
   Student,
@@ -234,6 +240,36 @@ export const resultsApi = {
     api.post<Mark>('/api/marks', data),
   getStudentResults: (studentId: string) =>
     api.get<StudentResult[]>(`/api/students/${studentId}/results`),
+};
+
+export const classroomApi = {
+  getSessions: (courseOfferingId?: string, page = 1, pageSize = 20, search?: string) => {
+    const extra = courseOfferingId ? { courseOfferingId } : undefined;
+    return api.get<PagedResult<LiveSession>>(`/api/live-sessions?${pageQuery(page, pageSize, search, extra)}`);
+  },
+  getSession: (id: string) => api.get<LiveSessionDetail>(`/api/live-sessions/${id}`),
+  createSession: (data: { courseOfferingId: string; title: string }) =>
+    api.post<LiveSession>('/api/live-sessions', data),
+  startSession: (id: string) => api.post<LiveSessionDetail>(`/api/live-sessions/${id}/start`, {}),
+  endSession: (id: string) => api.post<LiveSessionDetail>(`/api/live-sessions/${id}/end`, {}),
+
+  getFiles: (sessionId: string) => api.get<LectureFile[]>(`/api/live-sessions/${sessionId}/files`),
+  uploadFile: (sessionId: string, file: File) =>
+    apiUpload<LectureFile>(`/api/live-sessions/${sessionId}/files`, file),
+
+  getQuizzes: (sessionId: string) => api.get<Quiz[]>(`/api/live-sessions/${sessionId}/quizzes`),
+  getQuiz: (quizId: string) => api.get<Quiz>(`/api/quizzes/${quizId}`),
+  createQuiz: (data: { liveSessionId: string; title: string; questions: QuizQuestionDraft[] }) =>
+    api.post<Quiz>('/api/quizzes', data),
+  publishQuiz: (quizId: string) => api.post<Quiz>(`/api/quizzes/${quizId}/publish`, {}),
+  closeQuiz: (quizId: string) => api.post<Quiz>(`/api/quizzes/${quizId}/close`, {}),
+
+  submitQuiz: (
+    quizId: string,
+    answers: { questionId: string; selectedOptionId: string | null; answerText: string | null }[],
+  ) => api.post<QuizResult>(`/api/quizzes/${quizId}/submit`, { answers }),
+  getQuizResults: (quizId: string) => api.get<QuizResult[]>(`/api/quizzes/${quizId}/results`),
+  getMyQuizResult: (quizId: string) => api.get<QuizResult>(`/api/quizzes/${quizId}/my-result`),
 };
 
 export const financeApi = {

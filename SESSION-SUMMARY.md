@@ -4,7 +4,46 @@ Summary of changes made across the Nursing School Management System during this 
 
 ---
 
-## 1. Results & Reports — Photos & Zoom
+## 1. Live Classroom (video + quizzes + real-time)
+
+Full virtual classroom for lecturers and enrolled students.
+
+### Features
+| Area | What it does |
+|------|----------------|
+| **Video** | Self-hosted Jitsi (`@jitsi/react-sdk`) in the left panel; white-labeled as **NSMS Live Classroom** |
+| **Quizzes** | Lecturers upload questions + correct answers (MCQ, true/false, short answer); instant auto-grading on submit |
+| **SignalR** | `ClassroomHub` at `/hubs/classroom` — quiz publish, submissions, file uploads, session start/end |
+| **Files** | Lecture PDFs/images uploaded to sidebar; appear for everyone in real time |
+| **Security** | Unguessable `nsms-…` room IDs; enrollment check for students; answer key hidden from students |
+
+### Backend (new)
+- Entities: `LiveSession`, `Quiz`, `QuizQuestion`, `QuizOption`, `QuizSubmission`, `QuizAnswer`, `LectureFile`
+- Migration: `20260612101410_LiveClassroom`
+- `ClassroomService`, `ClassroomController`, `ClassroomHub`
+- `POST /api/live-sessions`, `/api/quizzes`, file upload, results endpoints
+
+### Frontend (new)
+- `/app/classroom` — session list (start / join / end)
+- `/app/classroom/:sessionId` — split layout: video left, quizzes + files right
+- Leaving video shows school UI (“You left the video” + Rejoin) — no Jitsi thank-you page
+
+### Video infrastructure
+- Docker: `jitsi-web`, `jitsi-prosody`, `jitsi-jicofo`, `jitsi-jvb`
+- Production: nginx on `nursing.pameoinvestimentsltd.com` proxies video paths + `nsms-*` rooms to local Jitsi (port 443, existing Let's Encrypt cert)
+- Setup: `sudo ./scripts/setup-video-same-domain.sh`
+- Firewall: `ufw allow 10000/udp` (media), `ufw allow 8443/tcp` (internal Jitsi web)
+
+### Key files
+- `src/NursingSchool.Infrastructure/Services/ClassroomService.cs`
+- `src/NursingSchool.Infrastructure/Hubs/ClassroomHub.cs`
+- `frontend/src/features/classroom/LiveClassroomPage.tsx`
+- `scripts/nginx/nursing.pameoinvestimentsltd.conf`
+- `scripts/jitsi/custom-config.js`, `custom-interface_config.js`
+
+---
+
+## 2. Results & Reports — Photos & Zoom
 
 ### Student results transcript (`/app/results/view`)
 - Each transcript now shows the **student's uploaded profile photo** in the report header.
@@ -201,6 +240,8 @@ ON CONFLICT DO NOTHING;
 | `/app/teachers` | Lecturer accounts + documents | Admin, Registrar |
 | `/app/admin/activity-logs` | Login history (IP, when, who) | System Administrator |
 | `/app/dashboard` | Dashboard with improved collections chart | All staff roles |
+| `/app/classroom` | Live classroom session list | Admin, Lecturer, Student |
+| `/app/classroom/:id` | Video + quizzes + files sidebar | Admin, Lecturer, Student (enrolled) |
 
 ---
 

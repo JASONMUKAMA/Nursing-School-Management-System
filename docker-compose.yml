@@ -23,11 +23,109 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_JITSI_DOMAIN: ${JITSI_VIDEO_HOST:-nursing.pameoinvestimentsltd.com}
     container_name: nursing-school-frontend
     network_mode: host
     depends_on:
       - api
     restart: unless-stopped
 
+  # ---- Self-hosted video stack (white-labeled, replaces meet.jit.si) ----
+  jitsi-web:
+    image: jitsi/web:stable
+    container_name: nursing-school-video-web
+    ports:
+      - '8443:443'
+    environment:
+      ENABLE_LETSENCRYPT: 0
+      ENABLE_HTTP_REDIRECT: 0
+      DISABLE_HTTPS: 0
+      ENABLE_CLOSE_PAGE: 0
+      PUBLIC_URL: "${JITSI_PUBLIC_URL:-https://localhost:8443}"
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_BOSH_URL_BASE: http://xmpp.meet.jitsi:5280
+      TZ: Africa/Kampala
+    volumes:
+      - jitsi-web-config:/config
+      - ./scripts/jitsi/custom-config.js:/config/custom-config.js:ro
+      - ./scripts/jitsi/custom-interface_config.js:/config/custom-interface_config.js:ro
+    networks:
+      - video
+    restart: unless-stopped
+
+  jitsi-prosody:
+    image: jitsi/prosody:stable
+    container_name: nursing-school-video-prosody
+    environment:
+      ENABLE_AUTH: 0
+      ENABLE_GUESTS: 1
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_GUEST_DOMAIN: guest.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      JICOFO_AUTH_PASSWORD: "${JICOFO_AUTH_PASSWORD:?set in .env}"
+      JVB_AUTH_PASSWORD: "${JVB_AUTH_PASSWORD:?set in .env}"
+      TZ: Africa/Kampala
+    volumes:
+      - jitsi-prosody-config:/config
+    networks:
+      video:
+        aliases:
+          - xmpp.meet.jitsi
+    restart: unless-stopped
+
+  jitsi-jicofo:
+    image: jitsi/jicofo:stable
+    container_name: nursing-school-video-jicofo
+    environment:
+      XMPP_SERVER: xmpp.meet.jitsi
+      XMPP_DOMAIN: meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      XMPP_MUC_DOMAIN: muc.meet.jitsi
+      JICOFO_AUTH_PASSWORD: "${JICOFO_AUTH_PASSWORD:?set in .env}"
+      TZ: Africa/Kampala
+    volumes:
+      - jitsi-jicofo-config:/config
+    depends_on:
+      - jitsi-prosody
+    networks:
+      - video
+    restart: unless-stopped
+
+  jitsi-jvb:
+    image: jitsi/jvb:stable
+    container_name: nursing-school-video-jvb
+    ports:
+      - '10000:10000/udp'
+    environment:
+      XMPP_SERVER: xmpp.meet.jitsi
+      XMPP_AUTH_DOMAIN: auth.meet.jitsi
+      XMPP_INTERNAL_MUC_DOMAIN: internal-muc.meet.jitsi
+      JVB_AUTH_PASSWORD: "${JVB_AUTH_PASSWORD:?set in .env}"
+      JVB_PORT: 10000
+      JVB_ADVERTISE_IPS: "${JVB_ADVERTISE_IPS:-127.0.0.1}"
+      PUBLIC_URL: "${JITSI_PUBLIC_URL:-https://localhost:8443}"
+      TZ: Africa/Kampala
+    volumes:
+      - jitsi-jvb-config:/config
+    depends_on:
+      - jitsi-prosody
+    networks:
+      - video
+    restart: unless-stopped
+
+networks:
+  video:
+
 volumes:
   uploads:
+  jitsi-web-config:
+  jitsi-prosody-config:
+  jitsi-jicofo-config:
+  jitsi-jvb-config:

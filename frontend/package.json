@@ -9,6 +9,7 @@
     "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
+    "@jitsi/react-sdk": "^1.4.4",
     "@microsoft/signalr": "^8.0.17",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

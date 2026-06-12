@@ -198,6 +198,18 @@ export const NAV_GROUPS: NavGroup[] = [
 
       {
 
+        path: '/app/classroom',
+
+        label: 'Live Classroom',
+
+        icon: '🎥',
+
+        roles: ['Admin', 'Lecturer', 'Student'],
+
+      },
+
+      {
+
         label: 'Results',
 
         icon: '🏆',

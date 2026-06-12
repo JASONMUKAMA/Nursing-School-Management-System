@@ -38,6 +38,27 @@ public static class InvoiceStatuses
     public const string Overdue = "Overdue";
 }
 
+public static class LiveSessionStatuses
+{
+    public const string Scheduled = "Scheduled";
+    public const string Live = "Live";
+    public const string Ended = "Ended";
+}
+
+public static class QuizStatuses
+{
+    public const string Draft = "Draft";
+    public const string Published = "Published";
+    public const string Closed = "Closed";
+}
+
+public static class QuizQuestionTypes
+{
+    public const string MultipleChoice = "MultipleChoice";
+    public const string TrueFalse = "TrueFalse";
+    public const string ShortAnswer = "ShortAnswer";
+}
+
 public static class PlacementStatuses
 {
     public const string Scheduled = "Scheduled";

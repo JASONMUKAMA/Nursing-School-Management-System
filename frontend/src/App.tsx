@@ -21,6 +21,10 @@ import { AcademicPage } from './features/academic/AcademicPage';
 
 import { AttendancePage } from './features/attendance/AttendancePage';
 
+import { ClassroomPage } from './features/classroom/ClassroomPage';
+
+import { LiveClassroomPage } from './features/classroom/LiveClassroomPage';
+
 import { ResultsPage } from './features/results/ResultsPage';
 
 import { FinancePage } from './features/finance/FinancePage';
@@ -99,6 +103,16 @@ export default function App() {
           <Route element={<ProtectedRoute roles={['Admin', 'Lecturer']} />}>
 
             <Route path="attendance" element={<AttendancePage />} />
+
+          </Route>
+
+
+
+          <Route element={<ProtectedRoute roles={['Admin', 'Lecturer', 'Student']} />}>
+
+            <Route path="classroom" element={<ClassroomPage />} />
+
+            <Route path="classroom/:sessionId" element={<LiveClassroomPage />} />
 
           </Route>
 

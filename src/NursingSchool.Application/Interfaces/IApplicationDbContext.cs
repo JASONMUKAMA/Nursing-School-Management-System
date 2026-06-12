@@ -35,6 +35,13 @@ public interface IApplicationDbContext
     DbSet<LoginActivity> LoginActivities { get; }
     DbSet<SchoolEvent> SchoolEvents { get; }
     DbSet<AppNotification> AppNotifications { get; }
+    DbSet<LiveSession> LiveSessions { get; }
+    DbSet<LectureFile> LectureFiles { get; }
+    DbSet<Quiz> Quizzes { get; }
+    DbSet<QuizQuestion> QuizQuestions { get; }
+    DbSet<QuizOption> QuizOptions { get; }
+    DbSet<QuizSubmission> QuizSubmissions { get; }
+    DbSet<QuizAnswer> QuizAnswers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

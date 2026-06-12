@@ -537,6 +537,98 @@ export interface ClinicalPlacement {
   status: string;
 }
 
+export type LiveSessionStatus = 'Scheduled' | 'Live' | 'Ended';
+export type QuizStatus = 'Draft' | 'Published' | 'Closed';
+export type QuizQuestionType = 'MultipleChoice' | 'TrueFalse' | 'ShortAnswer';
+
+export interface LiveSession {
+  id: string;
+  courseOfferingId: string;
+  courseCode: string;
+  courseName: string;
+  title: string;
+  status: LiveSessionStatus;
+  hostName: string;
+  hostUserId: string;
+  createdAt: string;
+  startedAt: string | null;
+  endedAt: string | null;
+}
+
+export interface LiveSessionDetail extends LiveSession {
+  roomId: string;
+}
+
+export interface LectureFile {
+  id: string;
+  liveSessionId: string;
+  fileName: string;
+  fileUrl: string;
+  sizeBytes: number;
+  uploadedByName: string;
+  createdAt: string;
+}
+
+export interface QuizOption {
+  id: string;
+  text: string;
+  isCorrect: boolean | null;
+}
+
+export interface QuizQuestion {
+  id: string;
+  text: string;
+  questionType: QuizQuestionType;
+  points: number;
+  sortOrder: number;
+  correctAnswerText: string | null;
+  options: QuizOption[];
+}
+
+export interface Quiz {
+  id: string;
+  liveSessionId: string;
+  title: string;
+  status: QuizStatus;
+  publishedAt: string | null;
+  closedAt: string | null;
+  questionCount: number;
+  maxScore: number;
+  questions: QuizQuestion[];
+}
+
+export interface QuizQuestionDraft {
+  text: string;
+  questionType: QuizQuestionType;
+  points: number;
+  correctAnswerText: string | null;
+  options: { text: string; isCorrect: boolean }[];
+}
+
+export interface QuizAnswerResult {
+  questionId: string;
+  questionText: string;
+  selectedOptionId: string | null;
+  answerText: string | null;
+  isCorrect: boolean;
+  pointsAwarded: number;
+  points: number;
+  correctAnswer: string | null;
+}
+
+export interface QuizResult {
+  submissionId: string;
+  quizId: string;
+  quizTitle: string;
+  studentId: string;
+  studentName: string;
+  studentNo: string;
+  score: number;
+  maxScore: number;
+  submittedAt: string;
+  answers: QuizAnswerResult[];
+}
+
 export interface ApiError {
   message: string;
 }
