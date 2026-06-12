@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { analyticsApi, dashboardApi } from '../../api/endpoints';
 import { DashboardCharts, PredictionAlerts } from '../../components/charts/DashboardCharts';
 import { Card } from '../../components/ui/Card';
@@ -17,6 +18,7 @@ import type {
   StudentRiskRow,
 } from '../../types';
 import { getPrimaryRole, ROLES } from '../../utils/roles';
+import { getDashboardStatHref, type DashboardStatLinkKey } from '../../utils/dashboardLinks';
 
 function formatUgxCompact(value: number) {
   if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
@@ -115,8 +117,11 @@ export function DashboardPage() {
     value: string;
     icon: string;
     sub: string;
+    linkKey?: DashboardStatLinkKey;
     isMoney?: boolean;
     wide?: boolean;
+    wrap?: boolean;
+    fullRow?: boolean;
     trend?: StatTrend | null;
   };
 
@@ -127,48 +132,93 @@ export function DashboardPage() {
     if (role === 'Admin' && adminData) {
       const tr = adminData.trends;
       return [
-        { label: 'Students', value: adminData.totalStudents.toLocaleString(), icon: '👨‍🎓', sub: 'enrolled', trend: t(tr, 'students') },
-        { label: 'Active', value: adminData.activeStudents.toLocaleString(), icon: '✓', sub: 'this term', trend: t(tr, 'active') },
-        { label: 'Collected', value: formatUgxCompact(adminData.collectedFees), icon: '💳', sub: 'UGX', isMoney: true, trend: t(tr, 'collected') },
-        { label: 'Outstanding', value: formatUgxCompact(adminData.outstandingFees), icon: '💰', sub: 'UGX', isMoney: true, trend: t(tr, 'outstanding') },
-        { label: 'Placements', value: String(adminData.activePlacements), icon: '🏥', sub: 'active', trend: t(tr, 'placements') },
-        { label: 'Applications', value: String(adminData.pendingApplications), icon: '📝', sub: 'pending', trend: t(tr, 'applications') },
+        { label: 'Students', value: adminData.totalStudents.toLocaleString(), icon: '👨‍🎓', sub: 'enrolled', linkKey: 'students', trend: t(tr, 'students') },
+        { label: 'Active', value: adminData.activeStudents.toLocaleString(), icon: '✓', sub: 'this term', linkKey: 'activeStudents', trend: t(tr, 'active') },
+        { label: 'Collected', value: formatUgxCompact(adminData.collectedFees), icon: '💳', sub: 'UGX', isMoney: true, linkKey: 'collected', trend: t(tr, 'collected') },
+        { label: 'Outstanding', value: formatUgxCompact(adminData.outstandingFees), icon: '💰', sub: 'UGX', isMoney: true, linkKey: 'outstanding', trend: t(tr, 'outstanding') },
+        { label: 'Placements', value: String(adminData.activePlacements), icon: '🏥', sub: 'active', linkKey: 'placements', trend: t(tr, 'placements') },
+        { label: 'Applications', value: String(adminData.pendingApplications), icon: '📝', sub: 'pending', linkKey: 'applications', trend: t(tr, 'applications') },
       ];
     }
     if (role === 'FinanceOfficer' && financeData) {
       const rate = ((financeData.totalCollected / Math.max(1, financeData.totalInvoiced)) * 100).toFixed(0);
       const tr = financeData.trends;
       return [
-        { label: 'Invoiced', value: formatUgxCompact(financeData.totalInvoiced), icon: '🧾', sub: 'UGX', isMoney: true, trend: t(tr, 'invoiced') },
-        { label: 'Collected', value: formatUgxCompact(financeData.totalCollected), icon: '💳', sub: 'UGX', isMoney: true, trend: t(tr, 'collected') },
-        { label: 'Outstanding', value: formatUgxCompact(financeData.outstanding), icon: '💰', sub: 'UGX', isMoney: true, trend: t(tr, 'outstanding') },
-        { label: 'Overdue', value: String(financeData.overdueCount), icon: '⚠️', sub: 'invoices', trend: t(tr, 'overdue') },
-        { label: 'Collection', value: `${rate}%`, icon: '📈', sub: 'rate', trend: t(tr, 'collectionRate') },
+        { label: 'Invoiced', value: formatUgxCompact(financeData.totalInvoiced), icon: '🧾', sub: 'UGX', isMoney: true, linkKey: 'invoiced', trend: t(tr, 'invoiced') },
+        { label: 'Collected', value: formatUgxCompact(financeData.totalCollected), icon: '💳', sub: 'UGX', isMoney: true, linkKey: 'collected', trend: t(tr, 'collected') },
+        { label: 'Outstanding', value: formatUgxCompact(financeData.outstanding), icon: '💰', sub: 'UGX', isMoney: true, linkKey: 'outstanding', trend: t(tr, 'outstanding') },
+        { label: 'Overdue', value: String(financeData.overdueCount), icon: '⚠️', sub: 'invoices', linkKey: 'overdue', trend: t(tr, 'overdue') },
+        { label: 'Collection', value: `${rate}%`, icon: '📈', sub: 'rate', linkKey: 'collectionRate', trend: t(tr, 'collectionRate') },
       ];
     }
     if (role === 'Student' && studentData) {
       return [
-        { label: 'Program', value: studentData.programName, icon: '📚', sub: '', wide: true },
-        { label: 'Courses', value: String(studentData.coursesEnrolled), icon: '📖', sub: 'enrolled' },
-        { label: 'Attendance', value: `${studentData.attendancePercent}%`, icon: '📅', sub: '' },
-        { label: 'Balance', value: formatUgxCompact(studentData.feeBalance), icon: '💰', sub: 'UGX', isMoney: true },
-        { label: 'Status', value: studentData.feeStatus, icon: '📋', sub: 'fees' },
+        { label: 'Program', value: studentData.programName, icon: '📚', sub: '', wrap: true, fullRow: true, linkKey: 'program' },
+        { label: 'Courses', value: String(studentData.coursesEnrolled), icon: '📖', sub: 'enrolled', linkKey: 'courses' },
+        { label: 'Attendance', value: `${studentData.attendancePercent}%`, icon: '📅', sub: '', linkKey: 'attendance' },
+        { label: 'Balance', value: formatUgxCompact(studentData.feeBalance), icon: '💰', sub: 'UGX', isMoney: true, linkKey: 'balance' },
+        { label: 'Status', value: studentData.feeStatus, icon: '📋', sub: 'fees', linkKey: 'feeStatus' },
       ];
     }
     if (summary) {
       const tr = summary.trends;
       return [
-        { label: 'Students', value: summary.totalStudents.toLocaleString(), icon: '👨‍🎓', sub: 'total', trend: t(tr, 'students') },
-        { label: 'Active', value: summary.activeStudents.toLocaleString(), icon: '✓', sub: '', trend: t(tr, 'active') },
-        { label: 'Applications', value: String(summary.pendingApplications), icon: '📝', sub: 'pending', trend: t(tr, 'applications') },
-        { label: 'Outstanding', value: formatUgxCompact(summary.outstandingBalance), icon: '💰', sub: 'UGX', isMoney: true, trend: t(tr, 'outstanding') },
-        { label: 'Placements', value: String(summary.activePlacements), icon: '🏥', sub: 'active', trend: t(tr, 'placements') },
+        { label: 'Students', value: summary.totalStudents.toLocaleString(), icon: '👨‍🎓', sub: 'total', linkKey: 'students', trend: t(tr, 'students') },
+        { label: 'Active', value: summary.activeStudents.toLocaleString(), icon: '✓', sub: '', linkKey: 'activeStudents', trend: t(tr, 'active') },
+        { label: 'Applications', value: String(summary.pendingApplications), icon: '📝', sub: 'pending', linkKey: 'applications', trend: t(tr, 'applications') },
+        { label: 'Outstanding', value: formatUgxCompact(summary.outstandingBalance), icon: '💰', sub: 'UGX', isMoney: true, linkKey: 'outstanding', trend: t(tr, 'outstanding') },
+        { label: 'Placements', value: String(summary.activePlacements), icon: '🏥', sub: 'active', linkKey: 'placements', trend: t(tr, 'placements') },
       ];
     }
     return [];
   };
 
   const stats = renderStats();
+
+  const statCardClass = (stat: StatItem) =>
+    `stat-card-v2${stat.isMoney ? ' stat-card-money' : ''}${stat.wide ? ' stat-card-wide' : ''}${stat.fullRow ? ' stat-card-full-row' : ''}`;
+
+  const renderStatCard = (stat: StatItem) => {
+    const href = stat.linkKey ? getDashboardStatHref(user, stat.linkKey) : null;
+    const body = (
+      <>
+        <div className="stat-card-v2-top">
+          <span className="stat-card-v2-icon">{stat.icon}</span>
+          <StatTrendBadge trend={stat.trend} />
+        </div>
+        <div className="stat-card-v2-body">
+          <span className={`stat-card-v2-value${stat.wrap ? ' stat-card-v2-value-wrap' : ''}`}>{stat.value}</span>
+          <span className="stat-card-v2-label">
+            {stat.label}
+            {stat.sub ? <span className="stat-card-v2-sub"> · {stat.sub}</span> : null}
+          </span>
+        </div>
+      </>
+    );
+
+    if (!href) {
+      return (
+        <div key={stat.label} className={statCardClass(stat)}>
+          {body}
+        </div>
+      );
+    }
+
+    const className = `${statCardClass(stat)} stat-card-v2-link`;
+    if (href.startsWith('/app')) {
+      return (
+        <Link key={stat.label} to={href} className={className} aria-label={`${stat.label}: ${stat.value}`}>
+          {body}
+        </Link>
+      );
+    }
+
+    return (
+      <a key={stat.label} href={href} className={className} aria-label={`${stat.label}: ${stat.value}`}>
+        {body}
+      </a>
+    );
+  };
 
   return (
     <div className="dashboard-page">
@@ -182,24 +232,7 @@ export function DashboardPage() {
         {error && <p className="text-error">{error}</p>}
         {!loading && !error && (
           <div className="stats-grid stats-grid-compact">
-            {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className={`stat-card-v2${stat.isMoney ? ' stat-card-money' : ''}${stat.wide ? ' stat-card-wide' : ''}`}
-              >
-                <div className="stat-card-v2-top">
-                  <span className="stat-card-v2-icon">{stat.icon}</span>
-                  <StatTrendBadge trend={stat.trend} />
-                </div>
-                <div className="stat-card-v2-body">
-                  <span className="stat-card-v2-value">{stat.value}</span>
-                  <span className="stat-card-v2-label">
-                    {stat.label}
-                    {stat.sub ? <span className="stat-card-v2-sub"> · {stat.sub}</span> : null}
-                  </span>
-                </div>
-              </div>
-            ))}
+            {stats.map((stat) => renderStatCard(stat))}
           </div>
         )}
       </Card>
