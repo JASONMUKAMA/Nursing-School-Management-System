@@ -8,7 +8,7 @@ export interface IdCardData {
   photoUrl?: string | null;
 }
 
-const SCHOOL_NAME = 'Kampala School of Nursing';
+const SCHOOL_NAME = 'Nursing School Management System';
 const SCHOOL_SHORT = 'NSMS';
 const BUILD_CHUNK = 25;
 

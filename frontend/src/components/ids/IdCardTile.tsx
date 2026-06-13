@@ -1,7 +1,7 @@
 import type { IdCardData } from '../../utils/idCardPrint';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 
-const SCHOOL_NAME = 'Kampala School of Nursing';
+const SCHOOL_NAME = 'Nursing School Management System';
 
 interface IdCardTileProps {
   card: IdCardData;

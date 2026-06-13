@@ -69,10 +69,7 @@ export function LandingPage() {
         <div className="landing-nav-inner">
           <div className="landing-brand">
             <span className="landing-brand-icon">➕</span>
-            <div>
-              <strong>Kampala School of Nursing</strong>
-              <span>Excellence in Healthcare Education</span>
-            </div>
+            <span className="landing-brand-text">Excellence in Healthcare Education</span>
           </div>
           <nav className="landing-nav-links">
             <a href="#about">About</a>
@@ -189,7 +186,7 @@ export function LandingPage() {
       </section>
 
       <footer className="landing-footer">
-        <p>© {new Date().getFullYear()} Kampala School of Nursing · Nursing School Management System</p>
+        <p>© {new Date().getFullYear()} Nursing School Management System</p>
         <p className="text-muted">Empowering healthcare education across Uganda</p>
       </footer>
     </div>

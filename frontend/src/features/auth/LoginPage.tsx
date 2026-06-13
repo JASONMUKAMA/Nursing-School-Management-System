@@ -106,7 +106,7 @@ export function LoginPage() {
 
           <span className="login-logo">➕</span>
 
-          <h1>Kampala School of Nursing</h1>
+          <h1>Excellence in Healthcare Education</h1>
 
           <p>Staff & Student Portal</p>
 

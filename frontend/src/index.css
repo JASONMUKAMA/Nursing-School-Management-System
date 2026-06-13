@@ -2204,15 +2204,11 @@ img.table-avatar {
   justify-content: center;
 }
 
-.landing-brand strong {
-  display: block;
+.landing-brand-text {
   font-size: 0.9375rem;
+  font-weight: 600;
   color: var(--color-primary-dark);
-}
-
-.landing-brand span {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .landing-nav-links {
